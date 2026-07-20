@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { DesktopStatus } from "@/components/site/desktop-status";
 import { KitActions } from "@/components/site/kit-actions";
 
 const tokens = [
@@ -38,6 +39,7 @@ export default function Home() {
           <span className="text-sm font-bold tracking-[-0.03em]">Archeion</span>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span className="hidden sm:inline">Next.js / Postgres / UI</span>
+            <DesktopStatus />
             <Badge variant="accent">Ready</Badge>
           </div>
         </nav>

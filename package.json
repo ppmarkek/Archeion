@@ -2,9 +2,13 @@
   "name": "archeion",
   "version": "0.1.0",
   "private": true,
+  "description": "Next.js and Electron foundation for Archeion",
+  "author": "Archeion",
   "scripts": {
     "dev": "next dev",
+    "desktop:dev": "concurrently --kill-others --names next,electron \"next dev --port 3000\" \"wait-on http://localhost:3000 && electron electron/main.cjs\"",
     "build": "next build",
+    "desktop:build": "npm run build && electron-builder --publish never",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -44,10 +48,51 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "concurrently": "^10.0.3",
     "drizzle-kit": "0.31.10",
+    "electron": "^43.1.1",
+    "electron-builder": "^26.15.3",
     "eslint": "^9.0.0",
     "eslint-config-next": "16.2.10",
     "tailwindcss": "^4.3.3",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "wait-on": "^9.0.10"
+  },
+  "main": "electron/main.cjs",
+  "build": {
+    "appId": "com.archeion.desktop",
+    "productName": "Archeion",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": ".next/standalone",
+        "to": "next-standalone"
+      },
+      {
+        "from": ".next/static",
+        "to": "next-standalone/.next/static"
+      },
+      {
+        "from": "public",
+        "to": "next-standalone/public"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": ["dmg"]
+    },
+    "win": {
+      "target": ["nsis"]
+    },
+    "linux": {
+      "target": ["AppImage"]
+    }
   }
 }

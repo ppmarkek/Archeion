@@ -56,3 +56,14 @@ UI собран на Tailwind CSS v4 и shadcn/ui в стиле `new-york`. Ко
 - `components/magic-ui` — `AnimatedGridPattern` и `BorderBeam`.
 
 Alias `@/*` настроен в `tsconfig.json`, а `components.json` оставляет возможность добавлять новые shadcn/ui-компоненты CLI-командой.
+
+## Electron
+
+Electron добавлен отдельным desktop-слоем в `electron/`. В браузерном режиме Next.js работает как обычно, а Electron загружает тот же UI через безопасный preload bridge.
+
+```bash
+npm run desktop:dev    # Next.js + Electron shell
+npm run desktop:build  # standalone Next.js + installer в release/
+```
+
+Production packaging использует `next build` с `output: "standalone"`. PostgreSQL остаётся отдельным сервисом и должен быть доступен через Docker или `DATABASE_URL`.
