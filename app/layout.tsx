@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Archeion",
-  description: "Next.js starter with a structured PostgreSQL foundation",
+  description: "Личный second brain для Markdown-заметок, учебных материалов и файлов.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
