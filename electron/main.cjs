@@ -12,6 +12,12 @@ function productionServerPath() {
   return path.join(process.resourcesPath, "next-standalone", "server.js");
 }
 
+function vaultDirectory() {
+  const directory = path.join(app.getPath("userData"), "vault");
+  fs.mkdirSync(directory, { recursive: true });
+  return directory;
+}
+
 function waitForServer(url, timeoutMs = 30_000) {
   const startedAt = Date.now();
 
@@ -53,6 +59,7 @@ async function startProductionServer() {
       ...process.env,
       ELECTRON_RUN_AS_NODE: "1",
       HOSTNAME: "127.0.0.1",
+      ARCHEION_VAULT_DIR: vaultDirectory(),
       NODE_ENV: "production",
       PORT: String(productionPort),
     },

@@ -24,6 +24,7 @@ npm run dev
 - `records` — основные записи с состоянием, slug, контентом и JSONB-метаданными;
 - `tags` — нормализованные теги;
 - `record_tags` — связь many-to-many с каскадным удалением.
+- `vault_items` — перестраиваемый индекс Markdown-заметок и вложений из личного Vault.
 
 Для изменения схемы:
 
@@ -41,6 +42,16 @@ npm run check      # typecheck + lint + production build
 ```
 
 PostgreSQL запускается локально через `docker-compose.yml`, а данные сохраняются в Docker volume `postgres_data`.
+
+## Vault: заметки и файлы
+
+Первый модуль second brain - личный Vault. Новые заметки всегда создаются как `.md`-файлы, поэтому их можно редактировать и вне Archeion. Любой загруженный файл сохраняется как Attachment рядом с заметками, а PostgreSQL хранит индекс метаданных.
+
+- открыть Vault: http://localhost:3000/vault;
+- создать заметку: **Создать .md**;
+- добавить учебный материал: **Добавить файл**.
+
+В браузерном режиме Vault хранится в `data/vault` (эта папка исключена из Git). В packaged Electron-версии он хранится в user data приложения.
 
 ## UI-стек
 

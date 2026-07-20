@@ -1,4 +1,5 @@
 import {
+  integer,
   jsonb,
   pgEnum,
   pgTable,
@@ -14,6 +15,8 @@ export const recordStatus = pgEnum("record_status", [
   "published",
   "archived",
 ]);
+
+export const vaultItemKind = pgEnum("vault_item_kind", ["note", "attachment"]);
 
 export const records = pgTable("records", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -50,7 +53,20 @@ export const recordTags = pgTable(
   (table) => [primaryKey({ columns: [table.recordId, table.tagId] })],
 );
 
+export const vaultItems = pgTable("vault_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  relativePath: varchar("relative_path", { length: 512 }).notNull().unique(),
+  name: varchar("name", { length: 255 }).notNull(),
+  kind: vaultItemKind("kind").notNull(),
+  mimeType: varchar("mime_type", { length: 255 }).notNull(),
+  byteSize: integer("byte_size").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export type ArchiveRecord = typeof records.$inferSelect;
 export type NewArchiveRecord = typeof records.$inferInsert;
 export type Tag = typeof tags.$inferSelect;
 export type NewTag = typeof tags.$inferInsert;
+export type VaultItem = typeof vaultItems.$inferSelect;
+export type NewVaultItem = typeof vaultItems.$inferInsert;

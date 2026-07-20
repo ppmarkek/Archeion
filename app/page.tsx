@@ -53,7 +53,7 @@ export default function Home() {
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Button asChild size="lg">
-                <a href="#kit">Открыть UI kit</a>
+                <a href="/vault">Открыть Vault</a>
               </Button>
               <Button asChild size="lg" variant="outline">
                 <a href="/api/health">Проверить API</a>

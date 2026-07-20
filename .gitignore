@@ -12,3 +12,4 @@ release/
 
 graphify-out/
 .playwright-cli/
+data/

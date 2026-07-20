@@ -2,7 +2,7 @@
   "name": "archeion",
   "version": "0.1.0",
   "private": true,
-  "description": "Next.js and Electron foundation for Archeion",
+  "description": "Personal second brain for Markdown notes and learning materials",
   "author": "Archeion",
   "scripts": {
     "dev": "next dev",
