@@ -24,6 +24,7 @@ Restrained product palette in OKLCH. Iris is reserved for focus, the active coll
 - **Source-first library:** notes and uploaded material are visibly separate. A `.md` is a note; every other uploaded file is a source attachment.
 - **Document canvas:** headings and body text stay within a reading measure. The raw Markdown editor and readable preview are two modes of the same document, never separate copies; a quick split view can place the preview beside the source.
 - **Selection toolbar:** selecting meaningful text in the Markdown editor reveals a compact, fixed-position formatting toolbar. Its familiar controls add Markdown syntax while preserving the selection for the next edit.
+- **Hover preview:** hovering or focusing a Markdown file in the Vault panel opens a delayed, readable card in the working area. It previews without changing the active document and offers an explicit open action.
 - **Quiet state feedback:** save state, file metadata, and item counts use low-contrast supporting text; iris only signals an actionable or selected state.
 - **System-respecting theme:** light, dark, and system choices are available in the workspace and remembered locally.
 

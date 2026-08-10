@@ -48,6 +48,12 @@ type FormattingHint = {
   top: number;
 };
 
+type HoverPreview = {
+  item: VaultEntry;
+  left: number;
+  top: number;
+};
+
 const themeOptions = [
   { value: "light", label: "Светлая тема", Icon: SunIcon },
   { value: "system", label: "Как в системе", Icon: MonitorIcon },
@@ -99,6 +105,16 @@ function noteTitle(item: VaultEntry) {
 function wordCount(value: string) {
   const trimmed = value.trim();
   return trimmed ? trimmed.split(/\s+/).length : 0;
+}
+
+function markdownExcerpt(content: string) {
+  return content
+    .replace(/^\s*#{1,6}\s+.*(?:\n|$)/, "")
+    .replace(/\[([^\]]+)]\([^)]*\)/g, "$1")
+    .replace(/^(?:[-*]|>)\s+/gm, "")
+    .replace(/[*`_]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function parentFolder(path: string) {
@@ -363,6 +379,9 @@ function VaultWorkspace() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const openRequestRef = React.useRef(0);
+  const hoverPreviewTimerRef = React.useRef<number | null>(null);
+  const hoverPreviewCacheRef = React.useRef<Record<string, string | null>>({});
+  const hoverPreviewRequestsRef = React.useRef(new Set<string>());
   const [items, setItems] = React.useState<VaultEntry[]>([]);
   const [selected, setSelected] = React.useState<VaultEntry | null>(null);
   const [content, setContent] = React.useState("");
@@ -379,6 +398,8 @@ function VaultWorkspace() {
   const [isUploading, setIsUploading] = React.useState(false);
   const [message, setMessage] = React.useState<string | null>(null);
   const [formattingHint, setFormattingHint] = React.useState<FormattingHint | null>(null);
+  const [hoverPreview, setHoverPreview] = React.useState<HoverPreview | null>(null);
+  const [hoverPreviewContentByPath, setHoverPreviewContentByPath] = React.useState<Record<string, string | null>>({});
 
   React.useEffect(() => {
     const storedTheme = window.localStorage.getItem("archeion-theme");
@@ -387,6 +408,10 @@ function VaultWorkspace() {
       return () => window.cancelAnimationFrame(frame);
     }
     return undefined;
+  }, []);
+
+  React.useEffect(() => () => {
+    if (hoverPreviewTimerRef.current !== null) window.clearTimeout(hoverPreviewTimerRef.current);
   }, []);
 
   React.useEffect(() => {
@@ -468,6 +493,62 @@ function VaultWorkspace() {
     setItems(nextItems);
     return nextItems;
   }, []);
+
+  const loadHoverPreview = React.useCallback(async (item: VaultEntry) => {
+    if (item.kind !== "note" || item.path in hoverPreviewCacheRef.current || hoverPreviewRequestsRef.current.has(item.path)) return;
+
+    hoverPreviewRequestsRef.current.add(item.path);
+    try {
+      const response = await fetch(`/api/vault/note?path=${encodeURIComponent(item.path)}`, { cache: "no-store" });
+      if (!response.ok) return;
+
+      const body = (await response.json()) as { content: string };
+      hoverPreviewCacheRef.current[item.path] = body.content;
+      setHoverPreviewContentByPath((current) => ({ ...current, [item.path]: body.content }));
+    } catch {
+      hoverPreviewCacheRef.current[item.path] = null;
+      setHoverPreviewContentByPath((current) => ({ ...current, [item.path]: null }));
+    } finally {
+      hoverPreviewRequestsRef.current.delete(item.path);
+    }
+  }, []);
+
+  const cancelHoverPreviewDismissal = React.useCallback(() => {
+    if (hoverPreviewTimerRef.current === null) return;
+    window.clearTimeout(hoverPreviewTimerRef.current);
+    hoverPreviewTimerRef.current = null;
+  }, []);
+
+  const scheduleHoverPreviewDismissal = React.useCallback(() => {
+    cancelHoverPreviewDismissal();
+    hoverPreviewTimerRef.current = window.setTimeout(() => {
+      setHoverPreview(null);
+      hoverPreviewTimerRef.current = null;
+    }, 180);
+  }, [cancelHoverPreviewDismissal]);
+
+  const showHoverPreview = React.useCallback((item: VaultEntry, target: HTMLButtonElement) => {
+    if (item.kind !== "note") return;
+
+    cancelHoverPreviewDismissal();
+    const targetRect = target.getBoundingClientRect();
+    const previewWidth = Math.min(672, window.innerWidth - 32);
+    const opensToLeft = panelPosition === "right" || (panelPosition !== "left" && targetRect.left > window.innerWidth / 2);
+    const left = Math.max(
+      16,
+      Math.min(
+        window.innerWidth - previewWidth - 16,
+        opensToLeft ? targetRect.left - previewWidth - 16 : targetRect.right + 16,
+      ),
+    );
+    const top = Math.max(16, Math.min(window.innerHeight - 336, targetRect.top - 16));
+
+    hoverPreviewTimerRef.current = window.setTimeout(() => {
+      setHoverPreview({ item, left, top });
+      hoverPreviewTimerRef.current = null;
+      void loadHoverPreview(item);
+    }, 150);
+  }, [cancelHoverPreviewDismissal, loadHoverPreview, panelPosition]);
 
   React.useEffect(() => {
     let active = true;
@@ -563,6 +644,8 @@ function VaultWorkspace() {
       const body = (await response.json()) as { item: VaultEntry };
       setSelected(body.item);
       setItems((current) => current.map((item) => (item.path === body.item.path ? body.item : item)));
+      hoverPreviewCacheRef.current[body.item.path] = content;
+      setHoverPreviewContentByPath((current) => ({ ...current, [body.item.path]: content }));
       setSavedContent(content);
       setMessage("Изменения сохранены в Markdown-файл");
     } catch (error) {
@@ -620,6 +703,7 @@ function VaultWorkspace() {
   const selectedTitle = selected ? (selected.kind === "note" ? noteTitle(selected) : selected.name) : "";
   const activeFolderTitle = activeFolder === "all" ? "Все файлы" : folderLabel(activeFolder);
   const isHorizontalDock = panelPosition === "top" || panelPosition === "bottom";
+  const hoverPreviewContent = hoverPreview ? hoverPreviewContentByPath[hoverPreview.item.path] : undefined;
 
   const layout = {
     right: {
@@ -894,7 +978,15 @@ function VaultWorkspace() {
                           selected?.path === item.path && "bg-accent",
                         )}
                         key={item.path}
-                        onClick={() => void openItem(item)}
+                        onBlur={item.kind === "note" ? scheduleHoverPreviewDismissal : undefined}
+                        onClick={() => {
+                          cancelHoverPreviewDismissal();
+                          setHoverPreview(null);
+                          void openItem(item);
+                        }}
+                        onFocus={item.kind === "note" ? (event) => showHoverPreview(item, event.currentTarget) : undefined}
+                        onPointerEnter={item.kind === "note" ? (event) => showHoverPreview(item, event.currentTarget) : undefined}
+                        onPointerLeave={item.kind === "note" ? scheduleHoverPreviewDismissal : undefined}
                         type="button"
                       >
                         <span className={cn("grid size-7 shrink-0 place-items-center rounded-[5px]", item.kind === "note" ? "bg-primary/10 text-primary" : "bg-secondary text-secondary-foreground")}>
@@ -952,6 +1044,56 @@ function VaultWorkspace() {
             </button>
           ))}
         </div>,
+        document.body,
+      ) : null}
+
+      {hoverPreview && typeof document !== "undefined" ? createPortal(
+        <aside
+          aria-label={`Быстрый просмотр: ${noteTitle(hoverPreview.item)}`}
+          className="fixed z-40 w-[calc(100vw-2rem)] max-w-2xl overflow-hidden rounded-[1.25rem] border bg-popover p-4 text-popover-foreground shadow-lg"
+          onPointerEnter={cancelHoverPreviewDismissal}
+          onPointerLeave={scheduleHoverPreviewDismissal}
+          style={{ left: hoverPreview.left, top: hoverPreview.top }}
+        >
+          <header className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-muted-foreground">Быстрый просмотр</p>
+              <h2 className="mt-1 truncate text-lg font-semibold tracking-[-0.02em]">{noteTitle(hoverPreview.item)}</h2>
+            </div>
+            <span className="shrink-0 rounded-[4px] bg-primary/10 px-2 py-1 text-xs font-medium text-primary">Markdown</span>
+          </header>
+
+          <div className="mt-4 border-t pt-4">
+            {hoverPreviewContent === undefined ? (
+              <div aria-busy="true" className="space-y-2.5 py-1">
+                <div className="h-4 w-11/12 animate-pulse rounded bg-muted" />
+                <div className="h-4 w-full animate-pulse rounded bg-muted" />
+                <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+              </div>
+            ) : hoverPreviewContent === null ? (
+              <p className="py-1 text-[15px] leading-7 text-muted-foreground">Не удалось загрузить содержимое заметки.</p>
+            ) : (
+              <p className="line-clamp-5 text-[15px] leading-7 text-muted-foreground">
+                {markdownExcerpt(hoverPreviewContent) || "В этой заметке пока нет текста."}
+              </p>
+            )}
+          </div>
+
+          <footer className="mt-4 flex items-center justify-between gap-3 border-t pt-3 text-xs text-muted-foreground">
+            <span>{formatDate(hoverPreview.item.updatedAt)}</span>
+            <button
+              className="font-medium text-foreground outline-none transition-colors duration-150 hover:text-primary focus-visible:ring-2 focus-visible:ring-ring/70"
+              onClick={() => {
+                cancelHoverPreviewDismissal();
+                setHoverPreview(null);
+                void openItem(hoverPreview.item);
+              }}
+              type="button"
+            >
+              Открыть заметку
+            </button>
+          </footer>
+        </aside>,
         document.body,
       ) : null}
     </>
