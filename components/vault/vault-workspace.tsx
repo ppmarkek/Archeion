@@ -406,17 +406,21 @@ function DocumentOutline({
   return (
     <aside
       aria-label="Оглавление документа"
-      className="group pointer-events-none absolute inset-y-0 right-0 z-20 hidden w-10 transition-[width] duration-200 ease-out hover:w-60 focus-within:w-60 xl:block"
+      className="group pointer-events-none absolute inset-y-0 right-0 z-20 hidden w-11 transition-[width] duration-200 ease-out hover:w-60 focus-within:w-60 xl:block"
     >
-      <nav className="pointer-events-auto sticky top-7 max-h-[calc(100dvh-4rem)] w-full overflow-x-hidden overflow-y-auto rounded-lg border border-transparent bg-transparent py-3 transition-[background-color,border-color] duration-200 group-hover:border-border group-hover:bg-sidebar/95 group-focus-within:border-border group-focus-within:bg-sidebar/95">
-        <p className="mb-2 whitespace-nowrap px-3 text-xs font-medium text-muted-foreground opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">На странице</p>
-        <div className="grid gap-0.5">
+      <nav className="pointer-events-auto sticky top-7 max-h-[calc(100dvh-4rem)] w-full overflow-x-hidden overflow-y-auto rounded-xl border border-transparent bg-transparent py-2 transition-[background-color,border-color,box-shadow] duration-200 group-hover:border-border/80 group-hover:bg-popover group-hover:shadow-sm group-focus-within:border-border/80 group-focus-within:bg-popover group-focus-within:shadow-sm">
+        <div className="flex h-8 items-center gap-2 whitespace-nowrap px-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+          <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-primary" />
+          <p className="text-xs font-medium text-foreground">Содержание</p>
+          <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">{headings.length}</span>
+        </div>
+        <div className="grid gap-0.5 px-1.5">
           {headings.map((heading) => (
             <button
               aria-current={activeHeadingId === heading.id ? "location" : undefined}
               className={cn(
-                "relative flex h-8 w-full items-center overflow-hidden whitespace-nowrap text-left text-sm leading-5 text-muted-foreground outline-none transition-colors duration-150 hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/70 group-hover:pr-3 group-focus-within:pr-3",
-                activeHeadingId === heading.id && "group-hover:bg-accent group-hover:text-accent-foreground group-focus-within:bg-accent group-focus-within:text-accent-foreground",
+                "relative flex h-8 w-full items-center overflow-hidden whitespace-nowrap rounded-md text-left text-sm leading-5 text-muted-foreground outline-none transition-[background-color,color,transform] duration-150 hover:bg-muted/70 hover:text-foreground active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70 group-hover:pr-5 group-focus-within:pr-5",
+                activeHeadingId === heading.id && "font-medium text-foreground group-hover:bg-accent/60 group-focus-within:bg-accent/60",
               )}
               key={heading.id}
               onClick={() => onNavigate(heading)}
@@ -427,12 +431,19 @@ function DocumentOutline({
               <span
                 aria-hidden="true"
                 className={cn(
-                  "absolute right-2 h-1 rounded-full bg-muted-foreground/70 transition-opacity duration-150 group-hover:opacity-0 group-focus-within:opacity-0",
-                  activeHeadingId === heading.id && "bg-primary",
+                  "absolute left-1/2 h-0.5 -translate-x-1/2 rounded-full bg-muted-foreground/45 transition-[width,opacity,background-color] duration-150 group-hover:opacity-0 group-focus-within:opacity-0",
+                  activeHeadingId === heading.id && "bg-primary opacity-100",
                 )}
-                style={{ width: `${Math.max(12, 28 - Math.min(heading.level - 1, 4) * 4)}px` }}
+                style={{ width: `${Math.max(12, 30 - Math.min(heading.level - 1, 4) * 4)}px` }}
               />
               <span className="block truncate opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">{heading.text}</span>
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "absolute right-2 size-1 rounded-full bg-primary opacity-0 transition-opacity duration-150",
+                  activeHeadingId === heading.id && "group-hover:opacity-100 group-focus-within:opacity-100",
+                )}
+              />
             </button>
           ))}
         </div>
