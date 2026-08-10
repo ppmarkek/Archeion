@@ -54,6 +54,13 @@ type HoverPreview = {
   top: number;
 };
 
+type DocumentHeading = {
+  id: string;
+  level: number;
+  start: number;
+  text: string;
+};
+
 const themeOptions = [
   { value: "light", label: "Светлая тема", Icon: SunIcon },
   { value: "system", label: "Как в системе", Icon: MonitorIcon },
@@ -143,6 +150,26 @@ function collectFolders(items: VaultEntry[]) {
     if (!right) return 1;
     return left.localeCompare(right, "ru");
   });
+}
+
+function extractMarkdownHeadings(content: string): DocumentHeading[] {
+  const headings: DocumentHeading[] = [];
+  let offset = 0;
+
+  for (const line of content.split("\n")) {
+    const match = line.match(/^(#{1,6})\s+(.+)$/);
+    if (match) {
+      headings.push({
+        id: `outline-heading-${headings.length}`,
+        level: match[1].length,
+        start: offset,
+        text: match[2].trim(),
+      });
+    }
+    offset += line.length + 1;
+  }
+
+  return headings;
 }
 
 function getFormattingHintPosition(textarea: HTMLTextAreaElement, selectionStart: number): FormattingHint {
@@ -309,6 +336,8 @@ function MarkdownPreview({ content }: { content: string }) {
     .trim()
     .split(/\n\s*\n/)
     .filter(Boolean);
+  const headings = extractMarkdownHeadings(content);
+  let headingIndex = 0;
 
   if (blocks.length === 0) {
     return <p className="pt-5 text-[15px] leading-7 text-muted-foreground">В этой заметке пока нет текста.</p>;
@@ -319,18 +348,19 @@ function MarkdownPreview({ content }: { content: string }) {
       {blocks.map((block, index) => {
         const blockKey = `${index}-${block}`;
         const lines = block.split("\n");
-        const heading = lines[0]?.match(/^(#{1,3})\s+(.+)$/);
+        const heading = lines[0]?.match(/^(#{1,6})\s+(.+)$/);
 
         if (heading) {
           const level = heading[1].length;
           const title = heading[2];
+          const outlineHeading = headings[headingIndex++];
           if (level === 1) {
-            return <h2 className="mb-5 mt-1 text-[2rem] font-semibold tracking-[-0.03em] text-foreground" key={blockKey}>{title}</h2>;
+            return <h2 className="mb-5 mt-1 scroll-mt-7 text-[2rem] font-semibold tracking-[-0.03em] text-foreground" data-outline-heading={outlineHeading?.id} id={outlineHeading?.id} key={blockKey}>{title}</h2>;
           }
           if (level === 2) {
-            return <h3 className="mb-3 mt-9 text-[1.45rem] font-semibold tracking-[-0.02em] text-foreground" key={blockKey}>{title}</h3>;
+            return <h3 className="mb-3 mt-9 scroll-mt-7 text-[1.45rem] font-semibold tracking-[-0.02em] text-foreground" data-outline-heading={outlineHeading?.id} id={outlineHeading?.id} key={blockKey}>{title}</h3>;
           }
-          return <h4 className="mb-2 mt-7 text-lg font-semibold text-foreground" key={blockKey}>{title}</h4>;
+          return <h4 className="mb-2 mt-7 scroll-mt-7 text-lg font-semibold text-foreground" data-outline-heading={outlineHeading?.id} id={outlineHeading?.id} key={blockKey}>{title}</h4>;
         }
 
         if (lines.every((line) => /^[-*]\s+/.test(line))) {
@@ -364,6 +394,50 @@ function MarkdownPreview({ content }: { content: string }) {
   );
 }
 
+function DocumentOutline({
+  activeHeadingId,
+  headings,
+  onNavigate,
+}: {
+  activeHeadingId: string | null;
+  headings: DocumentHeading[];
+  onNavigate: (heading: DocumentHeading) => void;
+}) {
+  return (
+    <aside aria-label="Оглавление документа" className="group hidden xl:block">
+      <nav className="sticky top-7 max-h-[calc(100dvh-4rem)] w-9 overflow-y-auto rounded-lg border border-transparent bg-transparent py-3 transition-[width,background-color,border-color] duration-200 ease-out hover:w-full hover:border-border hover:bg-sidebar/95 focus-within:w-full focus-within:border-border focus-within:bg-sidebar/95">
+        <p className="mb-2 whitespace-nowrap px-3 text-xs font-medium text-muted-foreground opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">На странице</p>
+        <div className="grid gap-0.5">
+          {headings.map((heading) => (
+            <button
+              aria-current={activeHeadingId === heading.id ? "location" : undefined}
+              className={cn(
+                "relative flex h-8 w-full items-center overflow-hidden whitespace-nowrap text-left text-sm leading-5 text-muted-foreground outline-none transition-colors duration-150 hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/70 group-hover:pr-3 group-focus-within:pr-3",
+                activeHeadingId === heading.id && "group-hover:bg-accent group-hover:text-accent-foreground group-focus-within:bg-accent group-focus-within:text-accent-foreground",
+              )}
+              key={heading.id}
+              onClick={() => onNavigate(heading)}
+              style={{ paddingLeft: `${Math.min(heading.level - 1, 4) * 10 + 12}px` }}
+              title={heading.text}
+              type="button"
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "absolute right-3 h-1 rounded-full bg-muted-foreground/70 transition-opacity duration-150 group-hover:opacity-0 group-focus-within:opacity-0",
+                  activeHeadingId === heading.id && "bg-primary",
+                )}
+                style={{ width: `${Math.max(14, 30 - Math.min(heading.level - 1, 4) * 4)}px` }}
+              />
+              <span className="block truncate opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">{heading.text}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+    </aside>
+  );
+}
+
 function LoadingCanvas() {
   return (
     <div aria-busy="true" className="mx-auto w-full max-w-3xl space-y-5 pt-4">
@@ -378,6 +452,7 @@ function LoadingCanvas() {
 function VaultWorkspace() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const canvasScrollRef = React.useRef<HTMLDivElement>(null);
   const openRequestRef = React.useRef(0);
   const hoverPreviewTimerRef = React.useRef<number | null>(null);
   const hoverPreviewCacheRef = React.useRef<Record<string, string | null>>({});
@@ -400,6 +475,7 @@ function VaultWorkspace() {
   const [formattingHint, setFormattingHint] = React.useState<FormattingHint | null>(null);
   const [hoverPreview, setHoverPreview] = React.useState<HoverPreview | null>(null);
   const [hoverPreviewContentByPath, setHoverPreviewContentByPath] = React.useState<Record<string, string | null>>({});
+  const [activeHeadingId, setActiveHeadingId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const storedTheme = window.localStorage.getItem("archeion-theme");
@@ -695,6 +771,77 @@ function VaultWorkspace() {
     });
   }, []);
 
+  const documentHeadings = React.useMemo(() => extractMarkdownHeadings(content), [content]);
+  const currentHeadingId = documentHeadings.some((heading) => heading.id === activeHeadingId)
+    ? activeHeadingId
+    : documentHeadings[0]?.id ?? null;
+
+  const updateActiveHeadingFromEditor = React.useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    let nextHeading = documentHeadings[0];
+    for (const heading of documentHeadings) {
+      if (heading.start > textarea.selectionStart) break;
+      nextHeading = heading;
+    }
+    setActiveHeadingId(nextHeading?.id ?? null);
+  }, [documentHeadings]);
+
+  const updateActiveHeadingFromPreview = React.useCallback(() => {
+    if (editorMode === "edit") return;
+
+    const container = canvasScrollRef.current;
+    if (!container) return;
+
+    const isCanvasScrollable = container.scrollHeight > container.clientHeight;
+    const anchor = isCanvasScrollable ? container.getBoundingClientRect().top + 92 : 92;
+    let nextHeadingId = documentHeadings[0]?.id ?? null;
+    for (const element of container.querySelectorAll<HTMLElement>("[data-outline-heading]")) {
+      if (element.getBoundingClientRect().top > anchor) break;
+      nextHeadingId = element.dataset.outlineHeading ?? nextHeadingId;
+    }
+    setActiveHeadingId(nextHeadingId);
+  }, [documentHeadings, editorMode]);
+
+  React.useEffect(() => {
+    if (editorMode === "edit" || documentHeadings.length === 0) return;
+
+    updateActiveHeadingFromPreview();
+    window.addEventListener("scroll", updateActiveHeadingFromPreview, { passive: true });
+    return () => window.removeEventListener("scroll", updateActiveHeadingFromPreview);
+  }, [documentHeadings.length, editorMode, updateActiveHeadingFromPreview]);
+
+  const navigateToHeading = React.useCallback((heading: DocumentHeading) => {
+    setActiveHeadingId(heading.id);
+
+    if (editorMode === "edit") {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+
+      const lineEnd = content.indexOf("\n", heading.start);
+      textarea.focus();
+      textarea.setSelectionRange(heading.start, lineEnd === -1 ? content.length : lineEnd);
+      const lineNumber = content.slice(0, heading.start).split("\n").length - 1;
+      textarea.scrollTop = Math.max(0, lineNumber * 28 - 84);
+      return;
+    }
+
+    const container = canvasScrollRef.current;
+    const target = document.getElementById(heading.id);
+    if (!container || !target) return;
+
+    const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+
+    if (container.scrollHeight > container.clientHeight) {
+      const top = target.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop - 72;
+      container.scrollTo({ behavior, top: Math.max(0, top) });
+      return;
+    }
+
+    window.scrollTo({ behavior, top: Math.max(0, target.getBoundingClientRect().top + window.scrollY - 72) });
+  }, [content, editorMode]);
+
   const folders = collectFolders(items);
   const visibleItems = activeFolder === "all"
     ? items
@@ -704,6 +851,7 @@ function VaultWorkspace() {
   const activeFolderTitle = activeFolder === "all" ? "Все файлы" : folderLabel(activeFolder);
   const isHorizontalDock = panelPosition === "top" || panelPosition === "bottom";
   const hoverPreviewContent = hoverPreview ? hoverPreviewContentByPath[hoverPreview.item.path] : undefined;
+  const showDocumentOutline = documentHeadings.length > 0 && editorMode !== "split";
 
   const layout = {
     right: {
@@ -739,9 +887,15 @@ function VaultWorkspace() {
         setContent(event.target.value);
         setFormattingHint(null);
       }}
-      onKeyUp={updateFormattingHint}
+      onKeyUp={() => {
+        updateFormattingHint();
+        updateActiveHeadingFromEditor();
+      }}
       onScroll={updateFormattingHint}
-      onSelect={updateFormattingHint}
+      onSelect={() => {
+        updateFormattingHint();
+        updateActiveHeadingFromEditor();
+      }}
       ref={textareaRef}
       spellCheck
       value={content}
@@ -817,7 +971,11 @@ function VaultWorkspace() {
             ) : null}
           </header>
 
-          <div className="min-h-0 overflow-y-auto">
+          <div
+            className="min-h-0 overflow-y-auto"
+            onScroll={editorMode === "edit" ? undefined : updateActiveHeadingFromPreview}
+            ref={canvasScrollRef}
+          >
             <div className="mx-auto min-h-full max-w-5xl px-5 py-7 md:px-12 md:py-11">
               {!isLoading && !selected ? (
                 <div className="mx-auto flex max-w-md flex-col items-start pt-14">
@@ -832,26 +990,38 @@ function VaultWorkspace() {
               {isLoading || isOpeningNote ? <LoadingCanvas /> : null}
 
               {!isLoading && !isOpeningNote && selected?.kind === "note" ? (
-                <div className="mx-auto flex min-h-full max-w-3xl flex-col">
-                  {editorMode === "edit" ? markdownEditor : null}
-                  {editorMode === "preview" ? <MarkdownPreview content={content} /> : null}
-                  {editorMode === "split" ? (
-                    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.85fr)]">
-                      <div className="min-w-0">{markdownEditor}</div>
-                      <aside aria-label="Быстрый просмотр Markdown" className="min-w-0 border-t pt-6 lg:border-t-0 lg:border-l lg:pl-8 lg:pt-0">
-                        <div className="flex items-center justify-between gap-3">
-                          <h2 className="text-sm font-semibold tracking-[-0.01em]">Быстрый просмотр</h2>
-                          <kbd className="rounded-[4px] border bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">⌘/Ctrl H</kbd>
+                <div className={cn("mx-auto min-h-full", showDocumentOutline ? "max-w-6xl xl:grid xl:grid-cols-[minmax(0,1fr)_15rem] xl:gap-10" : "max-w-3xl")}>
+                  <div className="min-w-0">
+                    <div className="flex min-h-full max-w-3xl flex-col">
+                      {editorMode === "edit" ? markdownEditor : null}
+                      {editorMode === "preview" ? <MarkdownPreview content={content} /> : null}
+                      {editorMode === "split" ? (
+                        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.85fr)]">
+                          <div className="min-w-0">{markdownEditor}</div>
+                          <aside aria-label="Быстрый просмотр Markdown" className="min-w-0 border-t pt-6 lg:border-t-0 lg:border-l lg:pl-8 lg:pt-0">
+                            <div className="flex items-center justify-between gap-3">
+                              <h2 className="text-sm font-semibold tracking-[-0.01em]">Быстрый просмотр</h2>
+                              <kbd className="rounded-[4px] border bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">⌘/Ctrl H</kbd>
+                            </div>
+                            <div className="mt-5"><MarkdownPreview content={content} /></div>
+                          </aside>
                         </div>
-                        <div className="mt-5"><MarkdownPreview content={content} /></div>
-                      </aside>
+                      ) : null}
+                      <footer className="mt-auto flex items-center gap-3 border-t pt-4 text-xs text-muted-foreground">
+                        <span>{wordCount(content)} слов</span>
+                        <span aria-hidden="true">·</span>
+                        <span>{isDirty ? "Есть несохранённые изменения" : "Все изменения сохранены"}</span>
+                      </footer>
                     </div>
+                  </div>
+
+                  {showDocumentOutline ? (
+                    <DocumentOutline
+                      activeHeadingId={currentHeadingId}
+                      headings={documentHeadings}
+                      onNavigate={navigateToHeading}
+                    />
                   ) : null}
-                  <footer className="mt-auto flex items-center gap-3 border-t pt-4 text-xs text-muted-foreground">
-                    <span>{wordCount(content)} слов</span>
-                    <span aria-hidden="true">·</span>
-                    <span>{isDirty ? "Есть несохранённые изменения" : "Все изменения сохранены"}</span>
-                  </footer>
                 </div>
               ) : null}
 
