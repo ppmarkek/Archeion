@@ -404,8 +404,11 @@ function DocumentOutline({
   onNavigate: (heading: DocumentHeading) => void;
 }) {
   return (
-    <aside aria-label="Оглавление документа" className="group hidden xl:block">
-      <nav className="sticky top-7 max-h-[calc(100dvh-4rem)] w-9 overflow-y-auto rounded-lg border border-transparent bg-transparent py-3 transition-[width,background-color,border-color] duration-200 ease-out hover:w-full hover:border-border hover:bg-sidebar/95 focus-within:w-full focus-within:border-border focus-within:bg-sidebar/95">
+    <aside
+      aria-label="Оглавление документа"
+      className="group pointer-events-none absolute inset-y-0 right-0 z-20 hidden w-10 transition-[width] duration-200 ease-out hover:w-60 focus-within:w-60 xl:block"
+    >
+      <nav className="pointer-events-auto sticky top-7 max-h-[calc(100dvh-4rem)] w-full overflow-x-hidden overflow-y-auto rounded-lg border border-transparent bg-transparent py-3 transition-[background-color,border-color] duration-200 group-hover:border-border group-hover:bg-sidebar/95 group-focus-within:border-border group-focus-within:bg-sidebar/95">
         <p className="mb-2 whitespace-nowrap px-3 text-xs font-medium text-muted-foreground opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">На странице</p>
         <div className="grid gap-0.5">
           {headings.map((heading) => (
@@ -424,10 +427,10 @@ function DocumentOutline({
               <span
                 aria-hidden="true"
                 className={cn(
-                  "absolute right-3 h-1 rounded-full bg-muted-foreground/70 transition-opacity duration-150 group-hover:opacity-0 group-focus-within:opacity-0",
+                  "absolute right-2 h-1 rounded-full bg-muted-foreground/70 transition-opacity duration-150 group-hover:opacity-0 group-focus-within:opacity-0",
                   activeHeadingId === heading.id && "bg-primary",
                 )}
-                style={{ width: `${Math.max(14, 30 - Math.min(heading.level - 1, 4) * 4)}px` }}
+                style={{ width: `${Math.max(12, 28 - Math.min(heading.level - 1, 4) * 4)}px` }}
               />
               <span className="block truncate opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">{heading.text}</span>
             </button>
@@ -990,9 +993,9 @@ function VaultWorkspace() {
               {isLoading || isOpeningNote ? <LoadingCanvas /> : null}
 
               {!isLoading && !isOpeningNote && selected?.kind === "note" ? (
-                <div className={cn("mx-auto min-h-full", showDocumentOutline ? "max-w-6xl xl:grid xl:grid-cols-[minmax(0,1fr)_15rem] xl:gap-10" : "max-w-3xl")}>
+                <div className={cn("relative mx-auto min-h-full", showDocumentOutline ? "max-w-5xl" : "max-w-3xl")}>
                   <div className="min-w-0">
-                    <div className="flex min-h-full max-w-3xl flex-col">
+                    <div className="mx-auto flex min-h-full max-w-3xl flex-col">
                       {editorMode === "edit" ? markdownEditor : null}
                       {editorMode === "preview" ? <MarkdownPreview content={content} /> : null}
                       {editorMode === "split" ? (
