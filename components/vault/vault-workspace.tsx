@@ -38,7 +38,7 @@ type ApiError = {
   error?: string;
 };
 
-type EditorMode = "edit" | "preview";
+type EditorMode = "edit" | "split" | "preview";
 type PanelPosition = "left" | "right" | "top" | "bottom";
 type ThemePreference = "light" | "system" | "dark";
 type TextFormat = "bold" | "italic" | "heading" | "list" | "quote" | "link";
@@ -409,6 +409,20 @@ function VaultWorkspace() {
     window.localStorage.setItem("archeion-panel-position", panelPosition);
   }, [panelPosition]);
 
+  React.useEffect(() => {
+    function toggleQuickPreview(event: KeyboardEvent) {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "h") return;
+      if (event.target !== textareaRef.current) return;
+
+      event.preventDefault();
+      setFormattingHint(null);
+      setEditorMode((mode) => (mode === "split" ? "edit" : "split"));
+    }
+
+    window.addEventListener("keydown", toggleQuickPreview);
+    return () => window.removeEventListener("keydown", toggleQuickPreview);
+  }, []);
+
   const openItem = React.useCallback(async (item: VaultEntry) => {
     const requestId = ++openRequestRef.current;
     setSelected(item);
@@ -630,6 +644,26 @@ function VaultWorkspace() {
     },
   }[panelPosition];
 
+  const markdownEditor = (
+    <Textarea
+      aria-label="Редактор Markdown"
+      className={cn(
+        "min-h-[calc(100dvh-15rem)] resize-none rounded-none border-0 bg-transparent px-0 py-0 font-mono text-[15px] leading-7 shadow-none focus-visible:ring-0 md:min-h-[calc(100dvh-13rem)]",
+        isHorizontalDock && "lg:min-h-[calc(100dvh-30rem)]",
+      )}
+      onChange={(event) => {
+        setContent(event.target.value);
+        setFormattingHint(null);
+      }}
+      onKeyUp={updateFormattingHint}
+      onScroll={updateFormattingHint}
+      onSelect={updateFormattingHint}
+      ref={textareaRef}
+      spellCheck
+      value={content}
+    />
+  );
+
   return (
     <>
       <main className="min-h-[100dvh] bg-background text-foreground selection:bg-[var(--selection)]">
@@ -661,6 +695,18 @@ function VaultWorkspace() {
                     type="button"
                   >
                     Редактор
+                  </button>
+                  <button
+                    aria-selected={editorMode === "split"}
+                    className={cn("h-7 rounded-[5px] px-2.5 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/70", editorMode === "split" && "bg-background text-foreground shadow-sm")}
+                    onClick={() => {
+                      setFormattingHint(null);
+                      setEditorMode("split");
+                    }}
+                    role="tab"
+                    type="button"
+                  >
+                    Рядом
                   </button>
                   <button
                     aria-selected={editorMode === "preview"}
@@ -703,27 +749,20 @@ function VaultWorkspace() {
 
               {!isLoading && !isOpeningNote && selected?.kind === "note" ? (
                 <div className="mx-auto flex min-h-full max-w-3xl flex-col">
-                  {editorMode === "edit" ? (
-                    <Textarea
-                      aria-label="Редактор Markdown"
-                      className={cn(
-                        "min-h-[calc(100dvh-15rem)] resize-none rounded-none border-0 bg-transparent px-0 py-0 font-mono text-[15px] leading-7 shadow-none focus-visible:ring-0 md:min-h-[calc(100dvh-13rem)]",
-                        isHorizontalDock && "lg:min-h-[calc(100dvh-30rem)]",
-                      )}
-                      onChange={(event) => {
-                        setContent(event.target.value);
-                        setFormattingHint(null);
-                      }}
-                      onKeyUp={updateFormattingHint}
-                      onScroll={updateFormattingHint}
-                      onSelect={updateFormattingHint}
-                      ref={textareaRef}
-                      spellCheck
-                      value={content}
-                    />
-                  ) : (
-                    <MarkdownPreview content={content} />
-                  )}
+                  {editorMode === "edit" ? markdownEditor : null}
+                  {editorMode === "preview" ? <MarkdownPreview content={content} /> : null}
+                  {editorMode === "split" ? (
+                    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.85fr)]">
+                      <div className="min-w-0">{markdownEditor}</div>
+                      <aside aria-label="Быстрый просмотр Markdown" className="min-w-0 border-t pt-6 lg:border-t-0 lg:border-l lg:pl-8 lg:pt-0">
+                        <div className="flex items-center justify-between gap-3">
+                          <h2 className="text-sm font-semibold tracking-[-0.01em]">Быстрый просмотр</h2>
+                          <kbd className="rounded-[4px] border bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">⌘/Ctrl H</kbd>
+                        </div>
+                        <div className="mt-5"><MarkdownPreview content={content} /></div>
+                      </aside>
+                    </div>
+                  ) : null}
                   <footer className="mt-auto flex items-center gap-3 border-t pt-4 text-xs text-muted-foreground">
                     <span>{wordCount(content)} слов</span>
                     <span aria-hidden="true">·</span>
