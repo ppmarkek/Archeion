@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import * as React from "react";
+import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,11 @@ import {
   ArcheionMark,
   AttachmentIcon,
   BookIcon,
-  CollectionIcon,
+  DockBottomIcon,
+  DockLeftIcon,
+  DockRightIcon,
+  DockTopIcon,
+  FolderIcon,
   MonitorIcon,
   MoonIcon,
   NoteIcon,
@@ -33,15 +38,45 @@ type ApiError = {
   error?: string;
 };
 
-type WorkspaceFilter = "all" | "notes" | "attachments";
 type EditorMode = "edit" | "preview";
+type PanelPosition = "left" | "right" | "top" | "bottom";
 type ThemePreference = "light" | "system" | "dark";
+type TextFormat = "bold" | "italic" | "heading" | "list" | "quote" | "link";
+
+type FormattingHint = {
+  left: number;
+  top: number;
+};
 
 const themeOptions = [
   { value: "light", label: "Светлая тема", Icon: SunIcon },
   { value: "system", label: "Как в системе", Icon: MonitorIcon },
   { value: "dark", label: "Тёмная тема", Icon: MoonIcon },
 ] as const;
+
+const dockOptions: Array<{
+  value: PanelPosition;
+  label: string;
+  Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+}> = [
+  { value: "left", label: "Переместить панель влево", Icon: DockLeftIcon },
+  { value: "right", label: "Переместить панель вправо", Icon: DockRightIcon },
+  { value: "top", label: "Переместить панель вверх", Icon: DockTopIcon },
+  { value: "bottom", label: "Переместить панель вниз", Icon: DockBottomIcon },
+];
+
+const formatOptions: Array<{
+  value: TextFormat;
+  label: string;
+  mark: string;
+}> = [
+  { value: "bold", label: "Полужирный", mark: "B" },
+  { value: "italic", label: "Курсив", mark: "I" },
+  { value: "heading", label: "Заголовок второго уровня", mark: "H2" },
+  { value: "list", label: "Маркированный список", mark: "•" },
+  { value: "quote", label: "Цитата", mark: "❝" },
+  { value: "link", label: "Ссылка", mark: "↗" },
+];
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} Б`;
@@ -64,6 +99,123 @@ function noteTitle(item: VaultEntry) {
 function wordCount(value: string) {
   const trimmed = value.trim();
   return trimmed ? trimmed.split(/\s+/).length : 0;
+}
+
+function parentFolder(path: string) {
+  const lastSlash = path.lastIndexOf("/");
+  return lastSlash === -1 ? "" : path.slice(0, lastSlash);
+}
+
+function folderLabel(path: string) {
+  if (!path) return "Корень";
+  const name = path.split("/").at(-1) ?? path;
+  return name === "attachments" ? "Вложения" : name;
+}
+
+function collectFolders(items: VaultEntry[]) {
+  const folders = new Set<string>([""]);
+
+  for (const item of items) {
+    const parts = item.path.split("/");
+    for (let index = 1; index < parts.length; index += 1) {
+      folders.add(parts.slice(0, index).join("/"));
+    }
+  }
+
+  return [...folders].sort((left, right) => {
+    if (!left) return -1;
+    if (!right) return 1;
+    return left.localeCompare(right, "ru");
+  });
+}
+
+function getFormattingHintPosition(textarea: HTMLTextAreaElement, selectionStart: number): FormattingHint {
+  const computed = window.getComputedStyle(textarea);
+  const mirror = document.createElement("div");
+  const marker = document.createElement("span");
+  const copiedProperties = [
+    "boxSizing",
+    "width",
+    "borderTopWidth",
+    "borderRightWidth",
+    "borderBottomWidth",
+    "borderLeftWidth",
+    "paddingTop",
+    "paddingRight",
+    "paddingBottom",
+    "paddingLeft",
+    "fontFamily",
+    "fontSize",
+    "fontWeight",
+    "fontStyle",
+    "letterSpacing",
+    "lineHeight",
+    "tabSize",
+    "textTransform",
+    "textIndent",
+    "wordSpacing",
+    "wordBreak",
+    "overflowWrap",
+    "textAlign",
+    "direction",
+  ] as const;
+
+  mirror.style.position = "fixed";
+  mirror.style.top = "0";
+  mirror.style.left = "0";
+  mirror.style.visibility = "hidden";
+  mirror.style.pointerEvents = "none";
+  mirror.style.whiteSpace = "pre-wrap";
+  mirror.style.overflow = "hidden";
+  mirror.style.overflowWrap = "break-word";
+
+  for (const property of copiedProperties) {
+    mirror.style[property] = computed[property];
+  }
+
+  mirror.textContent = textarea.value.slice(0, selectionStart);
+  marker.textContent = textarea.value.slice(selectionStart, selectionStart + 1) || "\u200b";
+  mirror.append(marker);
+  document.body.append(mirror);
+
+  const markerRect = marker.getBoundingClientRect();
+  const textareaRect = textarea.getBoundingClientRect();
+  const lineHeight = Number.parseFloat(computed.lineHeight) || 28;
+  mirror.remove();
+
+  const rawLeft = textareaRect.left + markerRect.left - textarea.scrollLeft;
+  const rawTop = textareaRect.top + markerRect.top - textarea.scrollTop - 44;
+  const top = rawTop > 12
+    ? rawTop
+    : Math.min(window.innerHeight - 44, textareaRect.top + markerRect.top - textarea.scrollTop + lineHeight + 8);
+
+  return {
+    left: Math.max(12, Math.min(window.innerWidth - 313, rawLeft)),
+    top: Math.max(12, top),
+  };
+}
+
+function formatMarkdownSelection(format: TextFormat, value: string) {
+  switch (format) {
+    case "bold":
+      return { value: `**${value}**`, selectionStart: 2, selectionEnd: value.length + 2 };
+    case "italic":
+      return { value: `*${value}*`, selectionStart: 1, selectionEnd: value.length + 1 };
+    case "heading": {
+      const formatted = value.split("\n").map((line) => (line ? `## ${line.replace(/^#{1,6}\s*/, "")}` : line)).join("\n");
+      return { value: formatted, selectionStart: 0, selectionEnd: formatted.length };
+    }
+    case "list": {
+      const formatted = value.split("\n").map((line) => (line ? `- ${line.replace(/^[-*]\s+/, "")}` : line)).join("\n");
+      return { value: formatted, selectionStart: 0, selectionEnd: formatted.length };
+    }
+    case "quote": {
+      const formatted = value.split("\n").map((line) => (line ? `> ${line.replace(/^>\s?/, "")}` : line)).join("\n");
+      return { value: formatted, selectionStart: 0, selectionEnd: formatted.length };
+    }
+    case "link":
+      return { value: `[${value}](https://)`, selectionStart: value.length + 3, selectionEnd: value.length + 11 };
+  }
 }
 
 async function readError(response: Response) {
@@ -94,6 +246,35 @@ function ThemeControls({
           className={cn(
             "grid size-7 place-items-center rounded-[5px] text-muted-foreground outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70",
             theme === value && "bg-background text-foreground shadow-sm",
+          )}
+          key={value}
+          onClick={() => onChange(value)}
+          title={label}
+          type="button"
+        >
+          <Icon className="size-3.5" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function DockControls({
+  position,
+  onChange,
+}: {
+  position: PanelPosition;
+  onChange: (position: PanelPosition) => void;
+}) {
+  return (
+    <div aria-label="Расположение панели" className="flex items-center rounded-md bg-muted p-1" role="group">
+      {dockOptions.map(({ value, label, Icon }) => (
+        <button
+          aria-label={label}
+          aria-pressed={position === value}
+          className={cn(
+            "grid size-7 place-items-center rounded-[5px] text-muted-foreground outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70",
+            position === value && "bg-background text-foreground shadow-sm",
           )}
           key={value}
           onClick={() => onChange(value)}
@@ -180,14 +361,16 @@ function LoadingCanvas() {
 
 function VaultWorkspace() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const openRequestRef = React.useRef(0);
   const [items, setItems] = React.useState<VaultEntry[]>([]);
   const [selected, setSelected] = React.useState<VaultEntry | null>(null);
   const [content, setContent] = React.useState("");
   const [savedContent, setSavedContent] = React.useState("");
   const [newNoteTitle, setNewNoteTitle] = React.useState("");
-  const [filter, setFilter] = React.useState<WorkspaceFilter>("all");
+  const [activeFolder, setActiveFolder] = React.useState("all");
   const [editorMode, setEditorMode] = React.useState<EditorMode>("edit");
+  const [panelPosition, setPanelPosition] = React.useState<PanelPosition>("right");
   const [theme, setTheme] = React.useState<ThemePreference>("system");
   const [isLoading, setIsLoading] = React.useState(true);
   const [isOpeningNote, setIsOpeningNote] = React.useState(false);
@@ -195,6 +378,7 @@ function VaultWorkspace() {
   const [isCreating, setIsCreating] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
   const [message, setMessage] = React.useState<string | null>(null);
+  const [formattingHint, setFormattingHint] = React.useState<FormattingHint | null>(null);
 
   React.useEffect(() => {
     const storedTheme = window.localStorage.getItem("archeion-theme");
@@ -206,11 +390,24 @@ function VaultWorkspace() {
   }, []);
 
   React.useEffect(() => {
+    const storedPosition = window.localStorage.getItem("archeion-panel-position");
+    if (storedPosition === "left" || storedPosition === "right" || storedPosition === "top" || storedPosition === "bottom") {
+      const frame = window.requestAnimationFrame(() => setPanelPosition(storedPosition));
+      return () => window.cancelAnimationFrame(frame);
+    }
+    return undefined;
+  }, []);
+
+  React.useEffect(() => {
     const root = document.documentElement;
     root.classList.remove("light", "dark");
     if (theme !== "system") root.classList.add(theme);
     window.localStorage.setItem("archeion-theme", theme);
   }, [theme]);
+
+  React.useEffect(() => {
+    window.localStorage.setItem("archeion-panel-position", panelPosition);
+  }, [panelPosition]);
 
   const openItem = React.useCallback(async (item: VaultEntry) => {
     const requestId = ++openRequestRef.current;
@@ -296,7 +493,7 @@ function VaultWorkspace() {
       if (!response.ok) throw new Error(await readError(response));
 
       const body = (await response.json()) as { item: VaultEntry };
-      setFilter("notes");
+      setActiveFolder(parentFolder(body.item.path));
       await refreshItems();
       await openItem(body.item);
       setNewNoteTitle("");
@@ -325,7 +522,7 @@ function VaultWorkspace() {
       if (!response.ok) throw new Error(await readError(response));
 
       const body = (await response.json()) as { item: VaultEntry };
-      setFilter(body.item.kind === "note" ? "notes" : "attachments");
+      setActiveFolder(parentFolder(body.item.path));
       await refreshItems();
       await openItem(body.item);
     } catch (error) {
@@ -361,185 +558,84 @@ function VaultWorkspace() {
     }
   }
 
-  const notes = items.filter((item) => item.kind === "note");
-  const attachments = items.filter((item) => item.kind === "attachment");
-  const visibleNotes = filter === "attachments" ? [] : notes;
-  const visibleAttachments = filter === "notes" ? [] : attachments;
+  const updateFormattingHint = React.useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea || textarea.selectionStart === textarea.selectionEnd) {
+      setFormattingHint(null);
+      return;
+    }
+
+    const selection = textarea.value.slice(textarea.selectionStart, textarea.selectionEnd);
+    if (!selection.trim()) {
+      setFormattingHint(null);
+      return;
+    }
+
+    setFormattingHint(getFormattingHintPosition(textarea, textarea.selectionStart));
+  }, []);
+
+  const applyFormatting = React.useCallback((format: TextFormat) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const selectionStart = textarea.selectionStart;
+    const selectionEnd = textarea.selectionEnd;
+    const currentContent = textarea.value;
+    const selection = currentContent.slice(selectionStart, selectionEnd);
+    if (!selection.trim()) return;
+
+    const formatted = formatMarkdownSelection(format, selection);
+    const nextContent = `${currentContent.slice(0, selectionStart)}${formatted.value}${currentContent.slice(selectionEnd)}`;
+    setContent(nextContent);
+    setFormattingHint(null);
+
+    window.requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(
+        selectionStart + formatted.selectionStart,
+        selectionStart + formatted.selectionEnd,
+      );
+    });
+  }, []);
+
+  const folders = collectFolders(items);
+  const visibleItems = activeFolder === "all"
+    ? items
+    : items.filter((item) => parentFolder(item.path) === activeFolder);
   const isDirty = selected?.kind === "note" && content !== savedContent;
   const selectedTitle = selected ? (selected.kind === "note" ? noteTitle(selected) : selected.name) : "";
+  const activeFolderTitle = activeFolder === "all" ? "Все файлы" : folderLabel(activeFolder);
+  const isHorizontalDock = panelPosition === "top" || panelPosition === "bottom";
 
-  const filters: Array<{
-    id: WorkspaceFilter;
-    label: string;
-    count: number;
-    Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  }> = [
-    { id: "all", label: "Всё", count: items.length, Icon: CollectionIcon },
-    { id: "notes", label: "Заметки", count: notes.length, Icon: NoteIcon },
-    { id: "attachments", label: "Материалы", count: attachments.length, Icon: AttachmentIcon },
-  ];
+  const layout = {
+    right: {
+      shell: "lg:grid-cols-[minmax(0,1fr)_20rem]",
+      panel: "order-1 border-b lg:order-2 lg:border-b-0 lg:border-l",
+      canvas: "order-2 lg:order-1",
+    },
+    left: {
+      shell: "lg:grid-cols-[20rem_minmax(0,1fr)]",
+      panel: "order-1 border-b lg:border-b-0 lg:border-r",
+      canvas: "order-2",
+    },
+    top: {
+      shell: "lg:grid-rows-[auto_minmax(0,1fr)]",
+      panel: "order-1 border-b",
+      canvas: "order-2",
+    },
+    bottom: {
+      shell: "lg:grid-rows-[minmax(0,1fr)_auto]",
+      panel: "order-2 border-t",
+      canvas: "order-1",
+    },
+  }[panelPosition];
 
   return (
-    <main className="min-h-[100dvh] bg-background text-foreground selection:bg-[var(--selection)]">
-      <div className="grid min-h-[100dvh] lg:grid-cols-[14.25rem_18.5rem_minmax(0,1fr)]">
-        <aside className="hidden min-h-0 flex-col border-r bg-sidebar lg:flex">
-          <div className="flex h-16 items-center border-b px-4">
-            <Link className="flex items-center gap-2.5 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/70" href="/">
-              <span className="grid size-8 place-items-center rounded-md bg-primary text-primary-foreground">
-                <ArcheionMark className="size-5" />
-              </span>
-              <span className="text-sm font-semibold tracking-[-0.02em]">Archeion</span>
-            </Link>
-          </div>
-
-          <nav aria-label="Содержимое Vault" className="px-3 py-5">
-            <p className="mb-2 px-2 text-xs font-medium text-muted-foreground">Мой Vault</p>
-            <div className="grid gap-1">
-              {filters.map(({ id, label, count, Icon }) => (
-                <button
-                  aria-current={filter === id ? "page" : undefined}
-                  className={cn(
-                    "flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/70",
-                    filter === id && "bg-accent text-accent-foreground",
-                  )}
-                  key={id}
-                  onClick={() => setFilter(id)}
-                  type="button"
-                >
-                  <Icon className="size-4" />
-                  <span className="flex-1 text-left">{label}</span>
-                  <span className="text-xs tabular-nums opacity-70">{count}</span>
-                </button>
-              ))}
-            </div>
-          </nav>
-
-          <div className="mt-auto border-t px-4 py-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-medium">Личный режим</p>
-                <p className="mt-1 text-xs leading-4 text-muted-foreground">Файлы принадлежат вашему Vault.</p>
-              </div>
-              <ThemeControls onChange={setTheme} theme={theme} />
-            </div>
-          </div>
-        </aside>
-
-        <section aria-label="Библиотека Vault" className="flex min-h-0 flex-col border-b bg-sidebar/60 lg:border-b-0 lg:border-r">
-          <header className="flex h-16 items-center justify-between border-b px-4">
-            <div>
-              <p className="text-sm font-semibold">Библиотека</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{filter === "all" ? "Все элементы" : filter === "notes" ? "Markdown-заметки" : "Вложения и источники"}</p>
-            </div>
-            <div className="lg:hidden">
-              <ThemeControls onChange={setTheme} theme={theme} />
-            </div>
-          </header>
-
-          <div className="border-b px-4 py-3">
-            <form className="flex gap-2" onSubmit={createNote}>
-              <label className="sr-only" htmlFor="note-title">Название новой заметки</label>
-              <Input
-                className="h-9 rounded-md bg-background px-2.5 text-sm shadow-none"
-                id="note-title"
-                onChange={(event) => setNewNoteTitle(event.target.value)}
-                placeholder="Новая заметка"
-                value={newNoteTitle}
-              />
-              <Button className="h-9 shrink-0 rounded-md px-3 shadow-none" disabled={isCreating} size="sm" type="submit">
-                <PlusIcon className="size-4" />
-                <span className="sr-only sm:not-sr-only">Создать</span>
-              </Button>
-            </form>
-            <input ref={fileInputRef} className="sr-only" type="file" onChange={uploadFile} />
-            <button
-              className="mt-2 flex h-8 w-full items-center gap-2 rounded-md px-1.5 text-left text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/70"
-              disabled={isUploading}
-              onClick={() => fileInputRef.current?.click()}
-              type="button"
-            >
-              <UploadIcon className="size-3.5" />
-              {isUploading ? "Добавляем файл…" : "Добавить файл в Vault"}
-            </button>
-          </div>
-
-          <div aria-busy={isLoading} className="min-h-0 max-h-72 flex-none overflow-y-auto px-2 py-3 lg:max-h-none lg:flex-1">
-            {isLoading ? (
-              <div className="space-y-2 px-2 py-1">
-                <div className="h-10 animate-pulse rounded-md bg-muted" />
-                <div className="h-10 animate-pulse rounded-md bg-muted" />
-                <div className="h-10 animate-pulse rounded-md bg-muted" />
-              </div>
-            ) : null}
-
-            {!isLoading && visibleNotes.length > 0 ? (
-              <section aria-labelledby="notes-heading" className="mb-5">
-                <h2 className="mb-1.5 px-2 text-xs font-medium text-muted-foreground" id="notes-heading">Заметки</h2>
-                <div className="grid gap-0.5">
-                  {visibleNotes.map((item) => (
-                    <button
-                      aria-current={selected?.path === item.path ? "page" : undefined}
-                      className={cn(
-                        "group flex min-h-12 items-center gap-2.5 rounded-md px-2.5 text-left outline-none transition-colors duration-150 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/70",
-                        selected?.path === item.path && "bg-accent",
-                      )}
-                      key={item.path}
-                      onClick={() => void openItem(item)}
-                      type="button"
-                    >
-                      <span className="grid size-7 shrink-0 place-items-center rounded-[5px] bg-primary/10 text-primary">
-                        <NoteIcon className="size-3.5" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-foreground">{noteTitle(item)}</span>
-                        <span className="mt-0.5 block text-xs text-muted-foreground">{formatDate(item.updatedAt)}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            {!isLoading && visibleAttachments.length > 0 ? (
-              <section aria-labelledby="attachments-heading">
-                <h2 className="mb-1.5 px-2 text-xs font-medium text-muted-foreground" id="attachments-heading">Материалы</h2>
-                <div className="grid gap-0.5">
-                  {visibleAttachments.map((item) => (
-                    <button
-                      aria-current={selected?.path === item.path ? "page" : undefined}
-                      className={cn(
-                        "group flex min-h-12 items-center gap-2.5 rounded-md px-2.5 text-left outline-none transition-colors duration-150 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/70",
-                        selected?.path === item.path && "bg-accent",
-                      )}
-                      key={item.path}
-                      onClick={() => void openItem(item)}
-                      type="button"
-                    >
-                      <span className="grid size-7 shrink-0 place-items-center rounded-[5px] bg-secondary text-secondary-foreground">
-                        <AttachmentIcon className="size-3.5" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-foreground">{item.name}</span>
-                        <span className="mt-0.5 block text-xs text-muted-foreground">{formatBytes(item.size)}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            {!isLoading && visibleNotes.length === 0 && visibleAttachments.length === 0 ? (
-              <div className="px-2 py-8 text-center">
-                <BookIcon className="mx-auto size-5 text-muted-foreground" />
-                <p className="mt-3 text-sm font-medium">Здесь пока пусто</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">Создайте Markdown-заметку или добавьте материал.</p>
-              </div>
-            ) : null}
-          </div>
-        </section>
-
-        <section aria-label="Рабочее полотно" className="grid min-h-[58dvh] min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-[var(--editor)] lg:min-h-0">
-          <header className="flex min-h-16 items-center justify-between gap-4 border-b px-4 py-3 md:px-7">
+    <>
+      <main className="min-h-[100dvh] bg-background text-foreground selection:bg-[var(--selection)]">
+      <div className={cn("grid min-h-[100dvh]", layout.shell)}>
+        <section aria-label="Рабочее полотно" className={cn("grid min-h-[60dvh] min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-[var(--editor)] lg:min-h-0", layout.canvas)}>
+          <header className="flex min-h-16 min-w-0 items-center justify-between gap-4 border-b px-4 py-3 md:px-7">
             <div className="min-w-0">
               {selected ? (
                 <>
@@ -550,7 +646,7 @@ function VaultWorkspace() {
                   <h1 className="mt-1 truncate text-lg font-semibold tracking-[-0.02em] md:text-xl">{selectedTitle}</h1>
                 </>
               ) : (
-                <p className="text-sm text-muted-foreground">Выберите заметку или материал</p>
+                <p className="text-sm text-muted-foreground">Выберите файл в панели Vault</p>
               )}
             </div>
 
@@ -599,7 +695,7 @@ function VaultWorkspace() {
                     <PlusIcon className="size-5" />
                   </span>
                   <h2 className="mt-5 text-xl font-semibold tracking-[-0.02em]">Создайте первую мысль</h2>
-                  <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">Введите название слева — Archeion создаст переносимый Markdown-файл, который можно открыть и вне приложения.</p>
+                  <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">Введите имя файла в панели Vault — Archeion создаст переносимую Markdown-заметку.</p>
                 </div>
               ) : null}
 
@@ -610,8 +706,18 @@ function VaultWorkspace() {
                   {editorMode === "edit" ? (
                     <Textarea
                       aria-label="Редактор Markdown"
-                      className="min-h-[calc(100dvh-15rem)] resize-none rounded-none border-0 bg-transparent px-0 py-0 font-mono text-[15px] leading-7 shadow-none focus-visible:ring-0 md:min-h-[calc(100dvh-13rem)]"
-                      onChange={(event) => setContent(event.target.value)}
+                      className={cn(
+                        "min-h-[calc(100dvh-15rem)] resize-none rounded-none border-0 bg-transparent px-0 py-0 font-mono text-[15px] leading-7 shadow-none focus-visible:ring-0 md:min-h-[calc(100dvh-13rem)]",
+                        isHorizontalDock && "lg:min-h-[calc(100dvh-30rem)]",
+                      )}
+                      onChange={(event) => {
+                        setContent(event.target.value);
+                        setFormattingHint(null);
+                      }}
+                      onKeyUp={updateFormattingHint}
+                      onScroll={updateFormattingHint}
+                      onSelect={updateFormattingHint}
+                      ref={textareaRef}
                       spellCheck
                       value={content}
                     />
@@ -642,14 +748,174 @@ function VaultWorkspace() {
             </div>
           </div>
         </section>
+
+        <aside aria-label="Панель Vault" className={cn("flex min-h-0 flex-col bg-sidebar/70", layout.panel, isHorizontalDock ? "lg:max-h-80" : "lg:h-[100dvh]")}>
+          <header className="flex min-h-16 items-center justify-between gap-2 border-b px-3">
+            <Link className="flex min-w-0 items-center gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/70" href="/">
+              <span className="grid size-7 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground">
+                <ArcheionMark className="size-4" />
+              </span>
+              <span className="truncate text-sm font-semibold tracking-[-0.02em]">Vault</span>
+            </Link>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <DockControls onChange={setPanelPosition} position={panelPosition} />
+              <ThemeControls onChange={setTheme} theme={theme} />
+            </div>
+          </header>
+
+          <div className="border-b px-3 py-3">
+            <form className="flex gap-2" onSubmit={createNote}>
+              <label className="sr-only" htmlFor="note-title">Название новой заметки</label>
+              <Input
+                className="h-9 rounded-md bg-background px-2.5 text-sm shadow-none"
+                id="note-title"
+                onChange={(event) => setNewNoteTitle(event.target.value)}
+                placeholder="Новая заметка"
+                value={newNoteTitle}
+              />
+              <Button className="h-9 shrink-0 rounded-md px-3 shadow-none" disabled={isCreating} size="sm" type="submit">
+                <PlusIcon className="size-4" />
+                <span className="sr-only">Создать заметку</span>
+              </Button>
+            </form>
+            <input ref={fileInputRef} className="sr-only" type="file" onChange={uploadFile} />
+            <button
+              className="mt-2 flex h-8 w-full items-center gap-2 rounded-md px-1.5 text-left text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/70"
+              disabled={isUploading}
+              onClick={() => fileInputRef.current?.click()}
+              type="button"
+            >
+              <UploadIcon className="size-3.5" />
+              {isUploading ? "Добавляем файл…" : "Добавить файл"}
+            </button>
+          </div>
+
+          <div aria-busy={isLoading} className={cn("min-h-0 flex-1 overflow-y-auto p-3", isHorizontalDock && "lg:grid lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-4 lg:overflow-hidden")}>
+            {isLoading ? (
+              <div className={cn("space-y-2", isHorizontalDock && "lg:col-span-2")}>
+                <div className="h-10 animate-pulse rounded-md bg-muted" />
+                <div className="h-10 animate-pulse rounded-md bg-muted" />
+                <div className="h-10 animate-pulse rounded-md bg-muted" />
+              </div>
+            ) : null}
+
+            {!isLoading ? (
+              <section aria-labelledby="folders-heading" className={cn(isHorizontalDock && "lg:min-h-0 lg:overflow-y-auto lg:border-r lg:pr-3")}>
+                <h2 className="mb-1.5 px-1 text-xs font-medium text-muted-foreground" id="folders-heading">Папки</h2>
+                <div className="grid gap-0.5">
+                  <button
+                    aria-current={activeFolder === "all" ? "page" : undefined}
+                    className={cn(
+                      "flex h-9 items-center gap-2 rounded-md px-2 text-left text-sm outline-none transition-colors duration-150 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/70",
+                      activeFolder === "all" && "bg-accent text-accent-foreground",
+                    )}
+                    onClick={() => setActiveFolder("all")}
+                    type="button"
+                  >
+                    <FolderIcon className="size-4 text-primary" />
+                    <span className="flex-1 truncate">Все файлы</span>
+                    <span className="text-xs tabular-nums text-muted-foreground">{items.length}</span>
+                  </button>
+                  {folders.map((folder) => {
+                    const count = items.filter((item) => parentFolder(item.path) === folder).length;
+                    return (
+                      <button
+                        aria-current={activeFolder === folder ? "page" : undefined}
+                        className={cn(
+                          "flex h-9 items-center gap-2 rounded-md px-2 text-left text-sm outline-none transition-colors duration-150 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/70",
+                          activeFolder === folder && "bg-accent text-accent-foreground",
+                        )}
+                        key={folder || "root"}
+                        onClick={() => setActiveFolder(folder)}
+                        type="button"
+                      >
+                        <FolderIcon className="size-4 text-muted-foreground" />
+                        <span className="flex-1 truncate">{folderLabel(folder)}</span>
+                        <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
+
+            {!isLoading ? (
+              <section aria-labelledby="files-heading" className={cn("mt-5", isHorizontalDock && "lg:mt-0 lg:min-h-0 lg:overflow-y-auto")}>
+                <div className="mb-1.5 flex items-center justify-between px-1">
+                  <h2 className="text-xs font-medium text-muted-foreground" id="files-heading">{activeFolderTitle}</h2>
+                  <span className="text-xs tabular-nums text-muted-foreground">{visibleItems.length}</span>
+                </div>
+                {visibleItems.length > 0 ? (
+                  <div className="grid gap-0.5">
+                    {visibleItems.map((item) => (
+                      <button
+                        aria-current={selected?.path === item.path ? "page" : undefined}
+                        className={cn(
+                          "flex min-h-12 items-center gap-2.5 rounded-md px-2 text-left outline-none transition-colors duration-150 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/70",
+                          selected?.path === item.path && "bg-accent",
+                        )}
+                        key={item.path}
+                        onClick={() => void openItem(item)}
+                        type="button"
+                      >
+                        <span className={cn("grid size-7 shrink-0 place-items-center rounded-[5px]", item.kind === "note" ? "bg-primary/10 text-primary" : "bg-secondary text-secondary-foreground")}>
+                          {item.kind === "note" ? <NoteIcon className="size-3.5" /> : <AttachmentIcon className="size-3.5" />}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium text-foreground">{item.kind === "note" ? noteTitle(item) : item.name}</span>
+                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">{item.kind === "note" ? formatDate(item.updatedAt) : formatBytes(item.size)}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="px-1 py-5">
+                    <BookIcon className="size-4 text-muted-foreground" />
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">В этой папке пока нет файлов.</p>
+                  </div>
+                )}
+              </section>
+            ) : null}
+          </div>
+        </aside>
       </div>
 
       {message ? (
-        <p className="fixed bottom-5 right-5 z-50 max-w-sm rounded-md bg-foreground px-3 py-2 text-sm text-background shadow-lg" role="status">
+        <p className={cn("fixed bottom-5 z-50 max-w-sm rounded-md bg-foreground px-3 py-2 text-sm text-background shadow-lg", panelPosition === "left" ? "right-5" : "left-5")} role="status">
           {message}
         </p>
       ) : null}
-    </main>
+      </main>
+
+      {formattingHint && typeof document !== "undefined" ? createPortal(
+        <div
+          aria-label="Форматирование выделенного текста"
+          className="fixed z-50 flex h-9 items-center gap-0.5 rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+          role="toolbar"
+          style={{ left: formattingHint.left, top: formattingHint.top }}
+        >
+          <span className="px-1.5 text-xs font-medium text-muted-foreground">Форматировать</span>
+          <span aria-hidden="true" className="h-4 w-px bg-border" />
+          {formatOptions.map(({ value, label, mark }) => (
+            <button
+              aria-label={label}
+              className={cn(
+                "grid size-7 place-items-center rounded-[4px] text-xs font-semibold text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/70",
+                value === "italic" && "font-serif italic",
+              )}
+              key={value}
+              onClick={() => applyFormatting(value)}
+              onPointerDown={(event) => event.preventDefault()}
+              title={label}
+              type="button"
+            >
+              {mark}
+            </button>
+          ))}
+        </div>,
+        document.body,
+      ) : null}
+    </>
   );
 }
 

@@ -50,6 +50,50 @@ function AttachmentIcon(props: IconProps) {
   );
 }
 
+function FolderIcon(props: IconProps) {
+  return (
+    <IconFrame {...props}>
+      <path d="M3.75 7.25h5l1.7 2H20.25v8.5a2 2 0 0 1-2 2h-12.5a2 2 0 0 1-2-2z" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.7" />
+    </IconFrame>
+  );
+}
+
+function DockLeftIcon(props: IconProps) {
+  return (
+    <IconFrame {...props}>
+      <rect height="14" rx="1.5" stroke="currentColor" strokeWidth="1.6" width="16" x="4" y="5" />
+      <path d="M8.5 5v14" stroke="currentColor" strokeWidth="1.6" />
+    </IconFrame>
+  );
+}
+
+function DockRightIcon(props: IconProps) {
+  return (
+    <IconFrame {...props}>
+      <rect height="14" rx="1.5" stroke="currentColor" strokeWidth="1.6" width="16" x="4" y="5" />
+      <path d="M15.5 5v14" stroke="currentColor" strokeWidth="1.6" />
+    </IconFrame>
+  );
+}
+
+function DockTopIcon(props: IconProps) {
+  return (
+    <IconFrame {...props}>
+      <rect height="14" rx="1.5" stroke="currentColor" strokeWidth="1.6" width="16" x="4" y="5" />
+      <path d="M4 9.5h16" stroke="currentColor" strokeWidth="1.6" />
+    </IconFrame>
+  );
+}
+
+function DockBottomIcon(props: IconProps) {
+  return (
+    <IconFrame {...props}>
+      <rect height="14" rx="1.5" stroke="currentColor" strokeWidth="1.6" width="16" x="4" y="5" />
+      <path d="M4 14.5h16" stroke="currentColor" strokeWidth="1.6" />
+    </IconFrame>
+  );
+}
+
 function PlusIcon(props: IconProps) {
   return (
     <IconFrame {...props}>
@@ -105,6 +149,11 @@ export {
   AttachmentIcon,
   BookIcon,
   CollectionIcon,
+  DockBottomIcon,
+  DockLeftIcon,
+  DockRightIcon,
+  DockTopIcon,
+  FolderIcon,
   MonitorIcon,
   MoonIcon,
   NoteIcon,
