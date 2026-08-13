@@ -7,23 +7,29 @@ import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { BrainGraph, GraphIcon } from "@/components/vault/brain-graph";
+import { BrainGraph } from "@/components/vault/brain-graph";
 import {
   ArcheionMark,
   AttachmentIcon,
   BookIcon,
+  CheckIcon,
   DockBottomIcon,
   DockLeftIcon,
   DockRightIcon,
   DockTopIcon,
+  EditIcon,
+  ExternalLinkIcon,
+  FileDocumentPlusIcon,
   FolderIcon,
+  GraphIcon,
+  LoadingIcon,
   MonitorIcon,
   MoonIcon,
   NoteIcon,
-  PlusIcon,
   SunIcon,
   UploadIcon,
 } from "@/components/vault/vault-icons";
+import type { AppIconProps } from "@/components/vault/vault-icons";
 import { cn, formatRussianCount } from "@/lib/utils";
 
 type VaultEntry = {
@@ -72,7 +78,7 @@ const themeOptions = [
 const dockOptions: Array<{
   value: PanelPosition;
   label: string;
-  Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  Icon: React.ComponentType<AppIconProps>;
 }> = [
   { value: "left", label: "Переместить панель влево", Icon: DockLeftIcon },
   { value: "right", label: "Переместить панель вправо", Icon: DockRightIcon },
@@ -985,7 +991,7 @@ function VaultWorkspace() {
                   role="tab"
                   type="button"
                 >
-                  <GraphIcon className="size-3.5" />
+                  <GraphIcon className="size-3.5" motion="press" />
                   <span className="hidden sm:inline">Атлас</span>
                 </button>
               </div>
@@ -1033,7 +1039,14 @@ function VaultWorkspace() {
                   {editorMode === "edit" ? "Просмотр" : "Редактор"}
                 </button>
                 <Button className="h-9 rounded-md px-3 shadow-none" disabled={!isDirty || isSaving} onClick={() => void saveNote()} size="sm" type="button">
-                  {isSaving ? "Сохранение…" : isDirty ? "Сохранить" : "Сохранено"}
+                  {isSaving ? (
+                    <LoadingIcon className="size-3.5" motion="loop" />
+                  ) : isDirty ? (
+                    <EditIcon className="size-3.5" />
+                  ) : (
+                    <CheckIcon className="size-3.5" motion="none" />
+                  )}
+                  <span>{isSaving ? "Сохранение…" : isDirty ? "Сохранить" : "Сохранено"}</span>
                 </Button>
                 </>
               ) : null}
@@ -1064,7 +1077,7 @@ function VaultWorkspace() {
               {!isLoading && !selected ? (
                 <div className="mx-auto flex max-w-md flex-col items-start pt-14">
                   <span className="grid size-11 place-items-center rounded-lg bg-accent text-accent-foreground">
-                    <PlusIcon className="size-5" />
+                    <FileDocumentPlusIcon className="size-5" />
                   </span>
                   <h2 className="mt-5 text-xl font-semibold tracking-[-0.02em]">Создайте первую мысль</h2>
                   <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">Введите имя файла в панели Vault — Archeion создаст переносимую Markdown-заметку.</p>
@@ -1118,7 +1131,10 @@ function VaultWorkspace() {
                   <h2 className="mt-2 break-words text-2xl font-semibold tracking-[-0.03em]">{selected.name}</h2>
                   <p className="mt-3 text-sm text-muted-foreground">{selected.mimeType} · {formatBytes(selected.size)} · добавлен {formatDate(selected.updatedAt)}</p>
                   <Button asChild className="mt-7 rounded-md shadow-none">
-                    <a href={`/api/vault/file?path=${encodeURIComponent(selected.path)}`} rel="noreferrer" target="_blank">Открыть файл</a>
+                    <a href={`/api/vault/file?path=${encodeURIComponent(selected.path)}`} rel="noreferrer" target="_blank">
+                      <ExternalLinkIcon className="size-4" />
+                      Открыть файл
+                    </a>
                   </Button>
                 </div>
               ) : null}
@@ -1152,7 +1168,7 @@ function VaultWorkspace() {
                 value={newNoteTitle}
               />
               <Button className="h-9 shrink-0 rounded-md px-3 shadow-none" disabled={isCreating} size="sm" type="submit">
-                <PlusIcon className="size-4" />
+                {isCreating ? <LoadingIcon className="size-4" motion="loop" /> : <FileDocumentPlusIcon className="size-4" />}
                 <span className="sr-only">Создать заметку</span>
               </Button>
             </form>
@@ -1163,7 +1179,7 @@ function VaultWorkspace() {
               onClick={() => fileInputRef.current?.click()}
               type="button"
             >
-              <UploadIcon className="size-3.5" />
+              {isUploading ? <LoadingIcon className="size-3.5" motion="loop" /> : <UploadIcon className="size-3.5" />}
               {isUploading ? "Добавляем файл…" : "Добавить файл"}
             </button>
           </div>
@@ -1190,7 +1206,7 @@ function VaultWorkspace() {
                     onClick={() => setActiveFolder("all")}
                     type="button"
                   >
-                    <FolderIcon className="size-4 text-primary" />
+                    <FolderIcon className="size-4 text-primary" motion="press" />
                     <span className="flex-1 truncate">Все файлы</span>
                     <span className="text-xs tabular-nums text-muted-foreground">{items.length}</span>
                   </button>
@@ -1207,7 +1223,7 @@ function VaultWorkspace() {
                         onClick={() => setActiveFolder(folder)}
                         type="button"
                       >
-                        <FolderIcon className="size-4 text-muted-foreground" />
+                        <FolderIcon className="size-4 text-muted-foreground" motion="press" />
                         <span className="flex-1 truncate">{folderLabel(folder)}</span>
                         <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
                       </button>
@@ -1245,7 +1261,7 @@ function VaultWorkspace() {
                         type="button"
                       >
                         <span className={cn("grid size-7 shrink-0 place-items-center rounded-[5px]", item.kind === "note" ? "bg-primary/10 text-primary" : "bg-secondary text-secondary-foreground")}>
-                          {item.kind === "note" ? <NoteIcon className="size-3.5" /> : <AttachmentIcon className="size-3.5" />}
+                          {item.kind === "note" ? <NoteIcon className="size-3.5" motion="press" /> : <AttachmentIcon className="size-3.5" motion="press" />}
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-medium text-foreground">{item.kind === "note" ? noteTitle(item) : item.name}</span>

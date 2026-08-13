@@ -180,6 +180,43 @@
   }
 }
 
+.alive-icon {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.alive-icon > svg {
+  display: block;
+  overflow: visible;
+}
+
+.alive-icon[data-icon-state="rest"] :where(*) {
+  animation: none !important;
+  opacity: 1 !important;
+  stroke-dashoffset: 0 !important;
+  transform: none !important;
+  transition: none !important;
+}
+
+.alive-icon:is([data-icon-motion="hover"], [data-icon-motion="press"]) {
+  transform-origin: center;
+  transition: color 150ms cubic-bezier(0.25, 1, 0.5, 1), transform 150ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+:where(button, a, label, [role="button"], [role="tab"], [data-icon-trigger]):is(:hover, :focus-visible) > .alive-icon[data-icon-motion="hover"],
+:where(button, a, label, [role="button"], [role="tab"], [data-icon-trigger]):is(:hover, :focus-visible) .alive-icon[data-icon-motion="hover"] {
+  transform: translateY(-0.5px);
+}
+
+:where(button, a, label, [role="button"], [role="tab"], [data-icon-trigger]):active > .alive-icon:is([data-icon-motion="hover"], [data-icon-motion="press"]),
+:where(button, a, label, [role="button"], [role="tab"], [data-icon-trigger]):active .alive-icon:is([data-icon-motion="hover"], [data-icon-motion="press"]) {
+  transform: scale(0.94);
+  transition-duration: 100ms;
+}
+
 .brain-graph-field {
   background-image:
     radial-gradient(circle at 52% 46%, color-mix(in oklab, var(--primary) 7%, transparent), transparent 34%),

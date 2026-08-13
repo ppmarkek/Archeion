@@ -2,7 +2,17 @@
 
 import * as React from "react";
 
-import { FolderIcon, NoteIcon } from "@/components/vault/vault-icons";
+import {
+  ChevronLeftIcon,
+  FitIcon,
+  FolderIcon,
+  GraphIcon,
+  LoadingIcon,
+  MinusIcon,
+  NoteIcon,
+  PlusIcon,
+  SearchIcon,
+} from "@/components/vault/vault-icons";
 import type {
   VaultGraphData,
   VaultGraphEdge,
@@ -53,44 +63,6 @@ const FOLDER_PALETTE = [
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const COLOR_STORAGE_KEY = "archeion-brain-folder-colors";
-
-function GraphIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24" {...props}>
-      <path d="m7.2 7.4 4.9-2.6 4.5 3.3M7 8.2l1.3 7.1m7.9-6.1-2.4 8m-5-1.1 4.1 1.5" stroke="currentColor" strokeLinecap="round" strokeWidth="1.55" />
-      <circle cx="6.7" cy="7.7" fill="currentColor" r="2.1" />
-      <circle cx="12.5" cy="4.6" fill="currentColor" r="1.7" />
-      <circle cx="17.2" cy="8.4" fill="currentColor" r="2" />
-      <circle cx="8.6" cy="16.2" fill="currentColor" r="1.9" />
-      <circle cx="13.4" cy="17.7" fill="currentColor" r="2.2" />
-    </svg>
-  );
-}
-
-function SearchIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24" {...props}>
-      <circle cx="10.5" cy="10.5" r="5.75" stroke="currentColor" strokeWidth="1.7" />
-      <path d="m15 15 4.25 4.25" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" />
-    </svg>
-  );
-}
-
-function FitIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24" {...props}>
-      <path d="M8.5 4.5h-4v4M15.5 4.5h4v4M8.5 19.5h-4v-4M15.5 19.5h4v-4" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
-    </svg>
-  );
-}
-
-function ChevronIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24" {...props}>
-      <path d="m9 6 6 6-6 6" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
-    </svg>
-  );
-}
 
 function stableHash(value: string) {
   let hash = 2166136261;
@@ -688,20 +660,20 @@ function GraphCanvas({
       <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center rounded-lg border bg-popover/92 p-1 text-popover-foreground shadow-sm backdrop-blur">
         <button
           aria-label="Уменьшить масштаб"
-          className="grid size-8 place-items-center rounded-md text-lg text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70"
+          className="grid size-8 place-items-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70"
           onClick={() => zoomAt(1 / 1.18)}
           type="button"
         >
-          −
+          <MinusIcon className="size-4" motion="press" />
         </button>
         <span className="w-14 text-center text-[11px] tabular-nums text-muted-foreground">{zoomPercent}%</span>
         <button
           aria-label="Увеличить масштаб"
-          className="grid size-8 place-items-center rounded-md text-lg text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70"
+          className="grid size-8 place-items-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70"
           onClick={() => zoomAt(1.18)}
           type="button"
         >
-          +
+          <PlusIcon className="size-4" motion="press" />
         </button>
         <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
         <button
@@ -711,7 +683,7 @@ function GraphCanvas({
           title="Показать весь граф (0)"
           type="button"
         >
-          <FitIcon className="size-4" />
+          <FitIcon className="size-4" motion="press" />
         </button>
       </div>
 
@@ -854,7 +826,7 @@ function BrainGraph({
         <div className="absolute inset-0 brain-graph-field" />
         <div className="absolute left-6 top-6 h-10 w-56 animate-pulse rounded-lg bg-muted/70" />
         <div className="absolute inset-0 grid place-items-center">
-          <div className="size-4 animate-pulse rounded-full bg-primary" />
+          <LoadingIcon className="size-5 text-primary" motion="loop" />
         </div>
       </div>
     );
@@ -954,7 +926,7 @@ function BrainGraph({
               onClick={() => setIsLegendOpen(false)}
               type="button"
             >
-              <ChevronIcon className="size-4 rotate-180" />
+              <ChevronLeftIcon className="size-4" />
             </button>
           </header>
 
@@ -1049,4 +1021,4 @@ function BrainGraph({
   );
 }
 
-export { BrainGraph, GraphIcon };
+export { BrainGraph };
