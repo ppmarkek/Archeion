@@ -26,6 +26,7 @@ Restrained product palette in OKLCH. Iris is reserved for focus, the active coll
 - **Selection toolbar:** selecting meaningful text in the Markdown editor reveals a compact, fixed-position formatting toolbar. Its familiar controls add Markdown syntax while preserving the selection for the next edit.
 - **Hover preview:** hovering or focusing a Markdown file in the Vault panel opens a delayed, readable card in the working area. It previews without changing the active document and offers an explicit open action.
 - **Document outline:** wide document canvases expose a sticky, nested table of contents for Markdown headings. The collapsed rail overlays the canvas edge without shifting the reading column, then expands left while following the active section in source and preview.
+- **Atlas graph:** Markdown notes form a full-canvas constellation from wiki-links and local Markdown links. The global view shows the whole Vault; folder view keeps that folder vivid and its one-hop neighbours muted. Folder colors are assigned automatically, remain editable, and follow the application theme. Note labels appear only on hover or keyboard focus so dense graphs stay readable.
 - **Quiet state feedback:** save state, file metadata, and item counts use low-contrast supporting text; iris only signals an actionable or selected state.
 - **System-respecting theme:** light, dark, and system choices are available in the workspace and remembered locally.
 
@@ -34,4 +35,5 @@ Restrained product palette in OKLCH. Iris is reserved for focus, the active coll
 - Use 1px separators and layered surfaces instead of floating cards and decorative shadows.
 - Keep interface type in one system sans family; keep Markdown source in a monospace editor.
 - Use 150–200ms state transitions only. Respect `prefers-reduced-motion`.
+- Keep graph navigation spatial and reversible: drag to pan, wheel or controls to zoom, drag individual nodes to untangle them, and always provide a fit-to-view action.
 - Meet 4.5:1 contrast for normal text. Muted text is supporting information, never the only way to understand a state.

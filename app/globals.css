@@ -32,6 +32,12 @@
   --sidebar-ring: oklch(0.58 0.15 286);
   --editor: oklch(0.992 0.003 270);
   --selection: oklch(0.84 0.095 286);
+  --graph-background: oklch(0.965 0.009 274);
+  --graph-edge: oklch(0.5 0.025 276);
+  --graph-edge-active: oklch(0.53 0.17 286);
+  --graph-node-border: oklch(0.985 0.004 270);
+  --graph-glow: oklch(0.58 0.16 286);
+  --graph-selected: oklch(0.43 0.18 286);
 }
 
 .dark {
@@ -63,6 +69,12 @@
   --sidebar-ring: oklch(0.735 0.15 286);
   --editor: oklch(0.18 0.017 276);
   --selection: oklch(0.38 0.105 286);
+  --graph-background: oklch(0.13 0.015 276);
+  --graph-edge: oklch(0.53 0.025 276);
+  --graph-edge-active: oklch(0.77 0.14 286);
+  --graph-node-border: oklch(0.91 0.012 270);
+  --graph-glow: oklch(0.75 0.16 286);
+  --graph-selected: oklch(0.84 0.11 286);
 }
 
 @theme inline {
@@ -158,8 +170,25 @@
     --sidebar-ring: oklch(0.735 0.15 286);
     --editor: oklch(0.18 0.017 276);
     --selection: oklch(0.38 0.105 286);
+    --graph-background: oklch(0.13 0.015 276);
+    --graph-edge: oklch(0.53 0.025 276);
+    --graph-edge-active: oklch(0.77 0.14 286);
+    --graph-node-border: oklch(0.91 0.012 270);
+    --graph-glow: oklch(0.75 0.16 286);
+    --graph-selected: oklch(0.84 0.11 286);
     color-scheme: dark;
   }
+}
+
+.brain-graph-field {
+  background-image:
+    radial-gradient(circle at 52% 46%, color-mix(in oklab, var(--primary) 7%, transparent), transparent 34%),
+    radial-gradient(circle at 18% 82%, color-mix(in oklab, #54a9bf 6%, transparent), transparent 26%),
+    radial-gradient(circle at 86% 18%, color-mix(in oklab, #d0a24d 4%, transparent), transparent 24%),
+    radial-gradient(circle, color-mix(in oklab, var(--foreground) 8%, transparent) 0.65px, transparent 0.8px);
+  background-size: auto, auto, auto, 24px 24px;
+  mask-image: linear-gradient(to bottom, black 72%, transparent 112%);
+  opacity: 0.9;
 }
 
 .magic-grid {

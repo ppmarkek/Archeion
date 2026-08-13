@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { BrainGraph, GraphIcon } from "@/components/vault/brain-graph";
 import {
   ArcheionMark,
   AttachmentIcon,
@@ -23,7 +24,7 @@ import {
   SunIcon,
   UploadIcon,
 } from "@/components/vault/vault-icons";
-import { cn } from "@/lib/utils";
+import { cn, formatRussianCount } from "@/lib/utils";
 
 type VaultEntry = {
   path: string;
@@ -39,6 +40,7 @@ type ApiError = {
 };
 
 type EditorMode = "edit" | "split" | "preview";
+type WorkspaceView = "document" | "brain";
 type PanelPosition = "left" | "right" | "top" | "bottom";
 type ThemePreference = "light" | "system" | "dark";
 type TextFormat = "bold" | "italic" | "heading" | "list" | "quote" | "link";
@@ -127,6 +129,12 @@ function markdownExcerpt(content: string) {
 function parentFolder(path: string) {
   const lastSlash = path.lastIndexOf("/");
   return lastSlash === -1 ? "" : path.slice(0, lastSlash);
+}
+
+function isItemInFolder(itemPath: string, folder: string) {
+  const itemFolder = parentFolder(itemPath);
+  if (!folder) return itemFolder === "";
+  return itemFolder === folder || itemFolder.startsWith(`${folder}/`);
 }
 
 function folderLabel(path: string) {
@@ -478,6 +486,7 @@ function VaultWorkspace() {
   const [newNoteTitle, setNewNoteTitle] = React.useState("");
   const [activeFolder, setActiveFolder] = React.useState("all");
   const [editorMode, setEditorMode] = React.useState<EditorMode>("edit");
+  const [workspaceView, setWorkspaceView] = React.useState<WorkspaceView>("document");
   const [panelPosition, setPanelPosition] = React.useState<PanelPosition>("right");
   const [theme, setTheme] = React.useState<ThemePreference>("system");
   const [isLoading, setIsLoading] = React.useState(true);
@@ -542,6 +551,7 @@ function VaultWorkspace() {
     const requestId = ++openRequestRef.current;
     setSelected(item);
     setMessage(null);
+    setWorkspaceView("document");
 
     if (item.kind === "attachment") {
       setContent("");
@@ -859,13 +869,17 @@ function VaultWorkspace() {
   const folders = collectFolders(items);
   const visibleItems = activeFolder === "all"
     ? items
-    : items.filter((item) => parentFolder(item.path) === activeFolder);
+    : items.filter((item) => isItemInFolder(item.path, activeFolder));
   const isDirty = selected?.kind === "note" && content !== savedContent;
   const selectedTitle = selected ? (selected.kind === "note" ? noteTitle(selected) : selected.name) : "";
   const activeFolderTitle = activeFolder === "all" ? "Все файлы" : folderLabel(activeFolder);
   const isHorizontalDock = panelPosition === "top" || panelPosition === "bottom";
   const hoverPreviewContent = hoverPreview ? hoverPreviewContentByPath[hoverPreview.item.path] : undefined;
   const showDocumentOutline = documentHeadings.length > 0 && editorMode !== "split";
+  const graphRefreshKey = items
+    .filter((item) => item.kind === "note")
+    .map((item) => `${item.path}:${item.size}:${item.updatedAt}`)
+    .join("|");
 
   const layout = {
     right: {
@@ -923,7 +937,15 @@ function VaultWorkspace() {
         <section aria-label="Рабочее полотно" className={cn("grid min-h-[60dvh] min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-[var(--editor)] lg:min-h-0", layout.canvas)}>
           <header className="flex min-h-16 min-w-0 items-center justify-between gap-4 border-b px-4 py-3 md:px-7">
             <div className="min-w-0">
-              {selected ? (
+              {workspaceView === "brain" ? (
+                <>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <GraphIcon className="size-3.5" />
+                    <span>Связи Markdown · {formatRussianCount(items.filter((item) => item.kind === "note").length, ["заметка", "заметки", "заметок"])}</span>
+                  </div>
+                  <h1 className="mt-1 truncate text-lg font-semibold tracking-[-0.02em] md:text-xl">Атлас</h1>
+                </>
+              ) : selected ? (
                 <>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     {selected.kind === "note" ? <NoteIcon className="size-3.5" /> : <AttachmentIcon className="size-3.5" />}
@@ -936,8 +958,40 @@ function VaultWorkspace() {
               )}
             </div>
 
-            {selected?.kind === "note" ? (
-              <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
+              <div aria-label="Вид рабочего пространства" className="flex rounded-md bg-muted p-1" role="tablist">
+                <button
+                  aria-selected={workspaceView === "document"}
+                  className={cn(
+                    "h-7 rounded-[5px] px-2.5 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/70",
+                    workspaceView === "document" && "bg-background text-foreground shadow-sm",
+                  )}
+                  onClick={() => setWorkspaceView("document")}
+                  role="tab"
+                  type="button"
+                >
+                  Документ
+                </button>
+                <button
+                  aria-selected={workspaceView === "brain"}
+                  className={cn(
+                    "flex h-7 items-center gap-1.5 rounded-[5px] px-2.5 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/70",
+                    workspaceView === "brain" && "bg-background text-foreground shadow-sm",
+                  )}
+                  onClick={() => {
+                    setFormattingHint(null);
+                    setWorkspaceView("brain");
+                  }}
+                  role="tab"
+                  type="button"
+                >
+                  <GraphIcon className="size-3.5" />
+                  <span className="hidden sm:inline">Атлас</span>
+                </button>
+              </div>
+
+              {workspaceView === "document" && selected?.kind === "note" ? (
+                <>
                 <div aria-label="Режим документа" className="hidden rounded-md bg-muted p-1 sm:flex" role="tablist">
                   <button
                     aria-selected={editorMode === "edit"}
@@ -981,16 +1035,32 @@ function VaultWorkspace() {
                 <Button className="h-9 rounded-md px-3 shadow-none" disabled={!isDirty || isSaving} onClick={() => void saveNote()} size="sm" type="button">
                   {isSaving ? "Сохранение…" : isDirty ? "Сохранить" : "Сохранено"}
                 </Button>
-              </div>
-            ) : null}
+                </>
+              ) : null}
+            </div>
           </header>
 
           <div
-            className="min-h-0 overflow-y-auto"
-            onScroll={editorMode === "edit" ? undefined : updateActiveHeadingFromPreview}
+            className={cn("min-h-0", workspaceView === "brain" ? "overflow-hidden" : "overflow-y-auto")}
+            onScroll={workspaceView === "document" && editorMode !== "edit" ? updateActiveHeadingFromPreview : undefined}
             ref={canvasScrollRef}
           >
-            <div className="mx-auto min-h-full max-w-5xl px-5 py-7 md:px-12 md:py-11">
+            {workspaceView === "brain" ? (
+              <BrainGraph
+                activeFolder={activeFolder}
+                onFolderChange={setActiveFolder}
+                onOpenNote={(path) => {
+                  const item = items.find((candidate) => candidate.kind === "note" && candidate.path === path);
+                  if (!item) return;
+                  setActiveFolder(parentFolder(item.path));
+                  void openItem(item);
+                }}
+                refreshKey={graphRefreshKey}
+                selectedPath={selected?.kind === "note" ? selected.path : null}
+                theme={theme}
+              />
+            ) : (
+              <div className="mx-auto min-h-full max-w-5xl px-5 py-7 md:px-12 md:py-11">
               {!isLoading && !selected ? (
                 <div className="mx-auto flex max-w-md flex-col items-start pt-14">
                   <span className="grid size-11 place-items-center rounded-lg bg-accent text-accent-foreground">
@@ -1052,11 +1122,12 @@ function VaultWorkspace() {
                   </Button>
                 </div>
               ) : null}
-            </div>
+              </div>
+            )}
           </div>
         </section>
 
-        <aside aria-label="Панель Vault" className={cn("flex min-h-0 flex-col bg-sidebar/70", layout.panel, isHorizontalDock ? "lg:max-h-80" : "lg:h-[100dvh]")}>
+        <aside aria-label="Панель Vault" className={cn("flex max-h-[42dvh] min-h-0 flex-col bg-sidebar/70 lg:max-h-none", layout.panel, isHorizontalDock ? "lg:max-h-80" : "lg:h-[100dvh]")}>
           <header className="flex min-h-16 items-center justify-between gap-2 border-b px-3">
             <Link className="flex min-w-0 items-center gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/70" href="/">
               <span className="grid size-7 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground">
@@ -1124,7 +1195,7 @@ function VaultWorkspace() {
                     <span className="text-xs tabular-nums text-muted-foreground">{items.length}</span>
                   </button>
                   {folders.map((folder) => {
-                    const count = items.filter((item) => parentFolder(item.path) === folder).length;
+                    const count = items.filter((item) => isItemInFolder(item.path, folder)).length;
                     return (
                       <button
                         aria-current={activeFolder === folder ? "page" : undefined}
