@@ -7,6 +7,8 @@ import ArrowAlignTopSvg from "@iconify-react/line-md/arrow-align-top";
 import ArrowsDiagonalSvg from "@iconify-react/line-md/arrows-diagonal";
 import CheckSvg from "@iconify-react/line-md/confirm";
 import ChevronSmallLeftSvg from "@iconify-react/line-md/chevron-small-left";
+import ChevronSmallRightSvg from "@iconify-react/line-md/chevron-small-right";
+import CloseSmallSvg from "@iconify-react/line-md/close-small";
 import CompassSvg from "@iconify-react/line-md/compass";
 import DocumentListSvg from "@iconify-react/line-md/document-list";
 import EditSvg from "@iconify-react/line-md/edit";
@@ -14,6 +16,7 @@ import ExternalLinkSvg from "@iconify-react/line-md/external-link";
 import FileDocumentSvg from "@iconify-react/line-md/file-document";
 import FileDocumentPlusSvg from "@iconify-react/line-md/file-document-plus";
 import FolderSvg from "@iconify-react/line-md/folder";
+import FolderArrowRightSvg from "@iconify-react/line-md/folder-arrow-right";
 import LinkSvg from "@iconify-react/line-md/link";
 import ListSvg from "@iconify-react/line-md/list-3";
 import LoadingSvg from "@iconify-react/line-md/loading-loop";
@@ -56,6 +59,8 @@ const AttachmentIcon = createAppIcon(LinkSvg, "AttachmentIcon");
 const BookIcon = createAppIcon(DocumentListSvg, "BookIcon");
 const CheckIcon = createAppIcon(CheckSvg, "CheckIcon");
 const ChevronLeftIcon = createAppIcon(ChevronSmallLeftSvg, "ChevronLeftIcon");
+const ChevronRightIcon = createAppIcon(ChevronSmallRightSvg, "ChevronRightIcon");
+const CloseIcon = createAppIcon(CloseSmallSvg, "CloseIcon");
 const CollectionIcon = createAppIcon(ListSvg, "CollectionIcon");
 const DockBottomIcon = createAppIcon(ArrowAlignBottomSvg, "DockBottomIcon");
 const DockLeftIcon = createAppIcon(ArrowAlignLeftSvg, "DockLeftIcon");
@@ -66,6 +71,7 @@ const ExternalLinkIcon = createAppIcon(ExternalLinkSvg, "ExternalLinkIcon");
 const FileDocumentPlusIcon = createAppIcon(FileDocumentPlusSvg, "FileDocumentPlusIcon");
 const FitIcon = createAppIcon(ArrowsDiagonalSvg, "FitIcon");
 const FolderIcon = createAppIcon(FolderSvg, "FolderIcon");
+const FolderOpenIcon = createAppIcon(FolderArrowRightSvg, "FolderOpenIcon");
 const GraphIcon = createAppIcon(CompassSvg, "GraphIcon");
 const LoadingIcon = createAppIcon(LoadingSvg, "LoadingIcon");
 const MinusIcon = createAppIcon(MinusSvg, "MinusIcon");
@@ -83,6 +89,8 @@ export {
   BookIcon,
   CheckIcon,
   ChevronLeftIcon,
+  ChevronRightIcon,
+  CloseIcon,
   CollectionIcon,
   DockBottomIcon,
   DockLeftIcon,
@@ -93,6 +101,7 @@ export {
   FileDocumentPlusIcon,
   FitIcon,
   FolderIcon,
+  FolderOpenIcon,
   GraphIcon,
   LoadingIcon,
   MinusIcon,

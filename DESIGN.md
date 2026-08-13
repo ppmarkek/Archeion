@@ -20,7 +20,9 @@ Restrained product palette in OKLCH. Iris is reserved for focus, the active coll
 
 ## Core patterns
 
-- **Dockable library:** one panel combines folders and files. It opens on the right by default and can dock left, right, top, or bottom; compact layouts keep it reachable without obscuring the document.
+- **Dockable library:** one panel combines folders and files. It opens on the right by default and can dock left, right, top, or bottom. A side-docked panel never jumps above the document at a narrow window width; its compact toggle reduces the rail while preserving creation, import, folder navigation, and file selection.
+- **Folder navigation:** the library opens one directory at a time. Home offers the hierarchical Vault root and a separate explicit “all files” view; entering a folder reveals only its direct folders and files, with a predictable back path.
+- **Tabbed workspace:** files open in a rounded browser-style tab rail and restore locally between sessions. Keep at most eight files open and at most four visible at once. An active tab can occupy the center, left, right, top, or bottom slot; inactive open tabs remain in the rail without consuming canvas space.
 - **Source-first library:** notes and uploaded material are visibly separate. A `.md` is a note; every other uploaded file is a source attachment.
 - **Document canvas:** headings and body text stay within a reading measure. The raw Markdown editor and readable preview are two modes of the same document, never separate copies; a quick split view can place the preview beside the source.
 - **Selection toolbar:** selecting meaningful text in the Markdown editor reveals a compact, fixed-position formatting toolbar. Its familiar controls add Markdown syntax while preserving the selection for the next edit.
