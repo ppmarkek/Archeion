@@ -56,11 +56,7 @@ type PanelPosition = "left" | "right" | "top" | "bottom";
 type PaneSlot = "center" | PanelPosition;
 type ThemePreference = "light" | "system" | "dark";
 type TextFormat = "bold" | "italic" | "heading" | "list" | "quote" | "link";
-
-type FolderLocation =
-  | { kind: "home" }
-  | { kind: "all" }
-  | { kind: "folder"; path: string };
+type LibraryView = "tree" | "all";
 
 type WorkspaceTab = {
   content: string;
@@ -76,6 +72,11 @@ type StoredWorkspace = {
   focusedPane?: unknown;
   openPaths?: unknown;
   panes?: unknown;
+};
+
+type StoredLibrary = {
+  expandedFolders?: unknown;
+  view?: unknown;
 };
 
 type FormattingHint = {
@@ -100,6 +101,7 @@ const MAX_OPEN_TABS = 8;
 const MAX_VISIBLE_PANES = 4;
 const WORKSPACE_STORAGE_KEY = "archeion-workspace-v1";
 const PANEL_COMPACT_STORAGE_KEY = "archeion-panel-compact";
+const LIBRARY_STORAGE_KEY = "archeion-library-v1";
 const paneSlots: PaneSlot[] = ["center", "left", "right", "top", "bottom"];
 const emptyPaneTabs: PaneTabs = {
   bottom: null,
@@ -227,11 +229,18 @@ function collectFolders(items: VaultEntry[]) {
 }
 
 function directItemsInFolder(items: VaultEntry[], folder: string) {
-  return items.filter((item) => parentFolder(item.path) === folder);
+  return items
+    .filter((item) => parentFolder(item.path) === folder)
+    .sort((left, right) => left.name.localeCompare(right.name, "ru", { numeric: true }));
 }
 
 function directChildFolders(items: VaultEntry[], folder: string) {
   return collectFolders(items).filter((candidate) => candidate && candidate !== folder && parentFolder(candidate) === folder);
+}
+
+function folderAncestors(folder: string) {
+  const parts = folder.split("/").filter(Boolean);
+  return parts.map((_, index) => parts.slice(0, index + 1).join("/"));
 }
 
 function paneForPath(panes: PaneTabs, path: string) {
@@ -630,6 +639,7 @@ function VaultWorkspace() {
   const hoverPreviewTimerRef = React.useRef<number | null>(null);
   const hoverPreviewCacheRef = React.useRef<Record<string, string | null>>({});
   const hoverPreviewRequestsRef = React.useRef(new Set<string>());
+  const libraryPreferencesReadyRef = React.useRef(false);
   const panelPreferencesReadyRef = React.useRef(false);
   const themePreferenceReadyRef = React.useRef(false);
   const [items, setItems] = React.useState<VaultEntry[]>([]);
@@ -638,7 +648,9 @@ function VaultWorkspace() {
   const [paneTabs, setPaneTabs] = React.useState<PaneTabs>(emptyPaneTabs);
   const [focusedPane, setFocusedPane] = React.useState<PaneSlot>("center");
   const [newNoteTitle, setNewNoteTitle] = React.useState("");
-  const [folderLocation, setFolderLocation] = React.useState<FolderLocation>({ kind: "home" });
+  const [libraryView, setLibraryView] = React.useState<LibraryView>("tree");
+  const [expandedFolders, setExpandedFolders] = React.useState<string[]>([]);
+  const [graphFolder, setGraphFolder] = React.useState("all");
   const [editorMode, setEditorMode] = React.useState<EditorMode>("edit");
   const [workspaceView, setWorkspaceView] = React.useState<WorkspaceView>("document");
   const [panelPosition, setPanelPosition] = React.useState<PanelPosition>("right");
@@ -659,7 +671,7 @@ function VaultWorkspace() {
   const content = selectedTab?.content ?? "";
   const savedContent = selectedTab?.savedContent ?? "";
   const isSaving = activePath ? savingPaths.includes(activePath) : false;
-  const activeFolder = folderLocation.kind === "folder" ? folderLocation.path : "all";
+  const activeFolder = graphFolder;
 
   function updateActiveTab(update: (tab: WorkspaceTab) => WorkspaceTab) {
     setTabs((current) => current.map((tab) => (
@@ -700,6 +712,26 @@ function VaultWorkspace() {
   }, []);
 
   React.useEffect(() => {
+    let stored: StoredLibrary = {};
+    try {
+      stored = JSON.parse(window.localStorage.getItem(LIBRARY_STORAGE_KEY) ?? "{}") as StoredLibrary;
+    } catch {
+      stored = {};
+    }
+
+    const storedFolders = Array.isArray(stored.expandedFolders)
+      ? stored.expandedFolders.filter((folder): folder is string => typeof folder === "string")
+      : [];
+    const storedView = stored.view === "all" ? "all" : "tree";
+    const frame = window.requestAnimationFrame(() => {
+      setExpandedFolders(storedFolders);
+      setLibraryView(storedView);
+      libraryPreferencesReadyRef.current = true;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  React.useEffect(() => {
     if (!themePreferenceReadyRef.current) return;
     const root = document.documentElement;
     root.classList.remove("light", "dark");
@@ -712,6 +744,14 @@ function VaultWorkspace() {
     window.localStorage.setItem("archeion-panel-position", panelPosition);
     window.localStorage.setItem(PANEL_COMPACT_STORAGE_KEY, String(isPanelCompact));
   }, [isPanelCompact, panelPosition]);
+
+  React.useEffect(() => {
+    if (!libraryPreferencesReadyRef.current) return;
+    window.localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify({
+      expandedFolders,
+      view: libraryView,
+    } satisfies StoredLibrary));
+  }, [expandedFolders, libraryView]);
 
   React.useEffect(() => {
     function toggleQuickPreview(event: KeyboardEvent) {
@@ -741,6 +781,20 @@ function VaultWorkspace() {
     setActivePath(path);
     setWorkspaceView("document");
     setFormattingHint(null);
+  }
+
+  function revealFolder(folder: string) {
+    setLibraryView("tree");
+    if (!folder) return;
+    const ancestors = folderAncestors(folder);
+    setExpandedFolders((current) => [...new Set([...current, ...ancestors])]);
+  }
+
+  function toggleFolder(folder: string) {
+    setLibraryView("tree");
+    setExpandedFolders((current) => current.includes(folder)
+      ? current.filter((candidate) => candidate !== folder)
+      : [...current, folder]);
   }
 
   async function openItem(item: VaultEntry) {
@@ -960,7 +1014,7 @@ function VaultWorkspace() {
       if (!response.ok) throw new Error(await readError(response));
 
       const body = (await response.json()) as { item: VaultEntry };
-      setFolderLocation({ kind: "folder", path: parentFolder(body.item.path) });
+      revealFolder(parentFolder(body.item.path));
       await refreshItems();
       await openItem(body.item);
       setNewNoteTitle("");
@@ -989,7 +1043,7 @@ function VaultWorkspace() {
       if (!response.ok) throw new Error(await readError(response));
 
       const body = (await response.json()) as { item: VaultEntry };
-      setFolderLocation({ kind: "folder", path: parentFolder(body.item.path) });
+      revealFolder(parentFolder(body.item.path));
       await refreshItems();
       await openItem(body.item);
     } catch (error) {
@@ -1222,21 +1276,10 @@ function VaultWorkspace() {
     window.scrollTo({ behavior, top: Math.max(0, target.getBoundingClientRect().top + window.scrollY - 72) });
   }
 
-  const childFolders = folderLocation.kind === "folder"
-    ? directChildFolders(items, folderLocation.path)
-    : [];
-  const visibleItems = folderLocation.kind === "all"
-    ? items
-    : folderLocation.kind === "folder"
-      ? directItemsInFolder(items, folderLocation.path)
-      : [];
+  const rootFolders = directChildFolders(items, "");
+  const rootItems = directItemsInFolder(items, "");
   const isDirty = selectedTab?.item.kind === "note" && content !== savedContent;
   const selectedTitle = selected ? (selected.kind === "note" ? noteTitle(selected) : selected.name) : "";
-  const activeFolderTitle = folderLocation.kind === "home"
-    ? "Папки"
-    : folderLocation.kind === "all"
-      ? "Все файлы"
-      : folderLabel(folderLocation.path);
   const isHorizontalDock = panelPosition === "top" || panelPosition === "bottom";
   const hoverPreviewContent = hoverPreview ? hoverPreviewContentByPath[hoverPreview.item.path] : undefined;
   const visiblePanes = visiblePaneCount(paneTabs);
@@ -1429,6 +1472,97 @@ function VaultWorkspace() {
           ) : null}
         </div>
       </section>
+    );
+  }
+
+  function renderVaultFile(item: VaultEntry, depth: number, showLocation = false) {
+    const isOpen = tabs.some((tab) => tab.item.path === item.path);
+    const location = parentFolder(item.path) || "Корень Vault";
+
+    return (
+      <li key={item.path}>
+        <button
+          aria-current={selected?.path === item.path ? "page" : undefined}
+          className={cn(
+            "flex min-h-9 w-full items-center gap-2 rounded-md pr-2 text-left outline-none transition-colors duration-150 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/70",
+            selected?.path === item.path && "bg-accent text-accent-foreground",
+          )}
+          onBlur={item.kind === "note" ? scheduleHoverPreviewDismissal : undefined}
+          onClick={() => {
+            cancelHoverPreviewDismissal();
+            setHoverPreview(null);
+            void openItem(item);
+          }}
+          onFocus={item.kind === "note" ? (event) => showHoverPreview(item, event.currentTarget) : undefined}
+          onPointerEnter={item.kind === "note" ? (event) => showHoverPreview(item, event.currentTarget) : undefined}
+          onPointerLeave={item.kind === "note" ? scheduleHoverPreviewDismissal : undefined}
+          style={{ paddingInlineStart: `${4 + depth * 14}px` }}
+          title={item.path}
+          type="button"
+        >
+          {!showLocation ? <span aria-hidden="true" className="size-3.5 shrink-0" /> : null}
+          <span className={cn(
+            "grid size-6 shrink-0 place-items-center rounded-[5px]",
+            item.kind === "note" ? "bg-primary/10 text-primary" : "bg-secondary text-secondary-foreground",
+          )}>
+            {item.kind === "note"
+              ? <NoteIcon className="size-3.5" motion="press" />
+              : <AttachmentIcon className="size-3.5" motion="press" />}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-xs font-medium text-foreground">{item.kind === "note" ? noteTitle(item) : item.name}</span>
+            {showLocation ? <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{location}</span> : null}
+          </span>
+          {isOpen ? <span className="size-1.5 shrink-0 rounded-full bg-primary" title="Открыто во вкладке" /> : null}
+        </button>
+      </li>
+    );
+  }
+
+  function renderVaultFolder(folder: string, depth: number) {
+    const isExpanded = expandedFolders.includes(folder);
+    const childFolders = directChildFolders(items, folder);
+    const childItems = directItemsInFolder(items, folder);
+    const count = items.filter((item) => isItemInFolder(item.path, folder)).length;
+    const label = folderLabel(folder);
+
+    return (
+      <li key={folder}>
+        <button
+          aria-expanded={isExpanded}
+          className={cn(
+            "flex h-9 w-full items-center gap-2 rounded-md pr-2 text-left text-xs outline-none transition-colors duration-150 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/70",
+            isExpanded && "text-foreground",
+          )}
+          onClick={() => toggleFolder(folder)}
+          style={{ paddingInlineStart: `${4 + depth * 14}px` }}
+          title={folder}
+          type="button"
+        >
+          <ChevronRightIcon
+            className={cn(
+              "size-3.5 shrink-0 text-muted-foreground transition-transform duration-150 motion-reduce:transition-none",
+              isExpanded && "rotate-90 text-foreground",
+            )}
+            motion="press"
+          />
+          <span className={cn(
+            "grid size-6 shrink-0 place-items-center rounded-[5px]",
+            isExpanded ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
+          )}>
+            <FolderIcon className="size-3.5" motion="none" />
+          </span>
+          <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
+          <span className="text-[10px] tabular-nums text-muted-foreground">{count}</span>
+        </button>
+
+        {isExpanded ? (
+          <ul aria-label={`Содержимое папки ${label}`} className="grid gap-0.5">
+            {childFolders.map((childFolder) => renderVaultFolder(childFolder, depth + 1))}
+            {childItems.map((item) => renderVaultFile(item, depth + 1))}
+          </ul>
+        ) : null}
+      </li>
     );
   }
 
@@ -1639,11 +1773,15 @@ function VaultWorkspace() {
             {workspaceView === "brain" ? (
               <BrainGraph
                 activeFolder={activeFolder}
-                onFolderChange={(folder) => setFolderLocation({ kind: "folder", path: folder })}
+                onFolderChange={(folder) => {
+                  setGraphFolder(folder);
+                  revealFolder(folder);
+                }}
                 onOpenNote={(path) => {
                   const item = items.find((candidate) => candidate.kind === "note" && candidate.path === path);
                   if (!item) return;
-                  setFolderLocation({ kind: "folder", path: parentFolder(item.path) });
+                  setGraphFolder(parentFolder(item.path));
+                  revealFolder(parentFolder(item.path));
                   void openItem(item);
                 }}
                 refreshKey={graphRefreshKey}
@@ -1659,7 +1797,7 @@ function VaultWorkspace() {
                 <span className="grid size-11 place-items-center rounded-lg bg-accent text-accent-foreground">
                   <FolderOpenIcon className="size-5" />
                 </span>
-                <h2 className="mt-5 text-xl font-semibold tracking-[-0.02em]">Откройте папку и выберите файл</h2>
+                <h2 className="mt-5 text-xl font-semibold tracking-[-0.02em]">Раскройте папку и выберите файл</h2>
                 <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">Файлы открываются во вкладках сверху. Одновременно можно держать до {MAX_OPEN_TABS} вкладок.</p>
               </div>
             )}
@@ -1747,135 +1885,64 @@ function VaultWorkspace() {
 
             {!isLoading ? (
               <section aria-labelledby="folder-browser-heading">
-                <header className="mb-3 flex min-h-8 items-center gap-2 px-1">
-                  {folderLocation.kind !== "home" ? (
-                    <button
-                      aria-label="Вернуться к предыдущей папке"
-                      className="grid size-7 shrink-0 place-items-center rounded-[5px] text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70"
-                      onClick={() => {
-                        if (folderLocation.kind === "all" || folderLocation.path === "") {
-                          setFolderLocation({ kind: "home" });
-                        } else {
-                          setFolderLocation({ kind: "folder", path: parentFolder(folderLocation.path) });
-                        }
-                      }}
-                      title="Назад"
-                      type="button"
-                    >
-                      <ChevronLeftIcon className="size-4" motion="press" />
-                    </button>
-                  ) : null}
+                <header className="mb-2 flex min-h-9 items-center gap-2 px-1">
                   <div className="min-w-0 flex-1">
-                    <h2 className="truncate text-xs font-semibold text-foreground" id="folder-browser-heading">{activeFolderTitle}</h2>
-                    <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
-                      {folderLocation.kind === "home"
-                        ? "Выберите папку"
-                        : folderLocation.kind === "all"
-                          ? `${items.length} файлов без иерархии`
-                          : folderLocation.path || "Корень Vault"}
-                    </p>
+                    <h2 className="truncate text-xs font-semibold text-foreground" id="folder-browser-heading">Файлы</h2>
+                    <p className="mt-0.5 truncate text-[10px] text-muted-foreground">Папки раскрываются в этом списке</p>
                   </div>
-                  {folderLocation.kind !== "home" ? (
-                    <span className="text-[10px] tabular-nums text-muted-foreground">{visibleItems.length}</span>
-                  ) : null}
+                  <span className="text-[10px] tabular-nums text-muted-foreground">{items.length}</span>
                 </header>
 
-                {folderLocation.kind === "home" ? (
-                  <div className="grid gap-1">
-                    <button
-                      className="flex min-h-12 items-center gap-2.5 rounded-md px-2 text-left outline-none transition-colors duration-150 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/70"
-                      onClick={() => setFolderLocation({ kind: "folder", path: "" })}
-                      type="button"
-                    >
-                      <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-                        <FolderOpenIcon className="size-4" motion="press" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium">Корень Vault</span>
-                        <span className="mt-0.5 block text-xs text-muted-foreground">Папки и файлы по уровням</span>
-                      </span>
-                      <ChevronRightIcon className="size-4 text-muted-foreground" motion="press" />
-                    </button>
-                    <button
-                      className="flex min-h-12 items-center gap-2.5 rounded-md px-2 text-left outline-none transition-colors duration-150 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/70"
-                      onClick={() => setFolderLocation({ kind: "all" })}
-                      type="button"
-                    >
-                      <span className="grid size-8 shrink-0 place-items-center rounded-md bg-secondary text-secondary-foreground">
-                        <CollectionIcon className="size-4" motion="press" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium">Все файлы</span>
-                        <span className="mt-0.5 block text-xs text-muted-foreground">Плоский список · {items.length}</span>
-                      </span>
-                      <ChevronRightIcon className="size-4 text-muted-foreground" motion="press" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid gap-0.5">
-                    {folderLocation.kind === "folder" && childFolders.length > 0 ? (
-                      <p className="px-2 pb-1 pt-1 text-[10px] font-medium text-muted-foreground">Папки</p>
-                    ) : null}
-                    {folderLocation.kind === "folder" ? childFolders.map((folder) => {
-                      const count = items.filter((item) => isItemInFolder(item.path, folder)).length;
-                      return (
-                        <button
-                          className="flex h-10 items-center gap-2 rounded-md px-2 text-left text-sm outline-none transition-colors duration-150 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/70"
-                          key={folder}
-                          onClick={() => setFolderLocation({ kind: "folder", path: folder })}
-                          type="button"
-                        >
-                          <FolderIcon className="size-4 text-muted-foreground" motion="press" />
-                          <span className="min-w-0 flex-1 truncate">{folderLabel(folder)}</span>
-                          <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
-                          <ChevronRightIcon className="size-3.5 text-muted-foreground" motion="press" />
-                        </button>
-                      );
-                    }) : null}
+                <div aria-label="Представление файлов" className="flex rounded-md bg-muted p-0.5" role="tablist">
+                  <button
+                    aria-selected={libraryView === "tree"}
+                    className={cn(
+                      "flex h-7 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[5px] px-2 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/70",
+                      libraryView === "tree" && "bg-background text-foreground shadow-sm",
+                    )}
+                    onClick={() => setLibraryView("tree")}
+                    role="tab"
+                    type="button"
+                  >
+                    <FolderIcon className="size-3.5" motion="press" />
+                    <span className="truncate">Папки</span>
+                  </button>
+                  <button
+                    aria-selected={libraryView === "all"}
+                    className={cn(
+                      "flex h-7 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[5px] px-2 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/70",
+                      libraryView === "all" && "bg-background text-foreground shadow-sm",
+                    )}
+                    onClick={() => setLibraryView("all")}
+                    role="tab"
+                    type="button"
+                  >
+                    <CollectionIcon className="size-3.5" motion="press" />
+                    <span className="truncate">Все</span>
+                  </button>
+                </div>
 
-                    {visibleItems.length > 0 && folderLocation.kind === "folder" && childFolders.length > 0 ? (
-                      <p className="px-2 pb-1 pt-3 text-[10px] font-medium text-muted-foreground">Файлы</p>
-                    ) : null}
-                    {visibleItems.map((item) => {
-                      const isOpen = tabs.some((tab) => tab.item.path === item.path);
-                      return (
-                        <button
-                          aria-current={selected?.path === item.path ? "page" : undefined}
-                          className={cn(
-                            "flex min-h-12 items-center gap-2.5 rounded-md px-2 text-left outline-none transition-colors duration-150 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/70",
-                            selected?.path === item.path && "bg-accent",
-                          )}
-                          key={item.path}
-                          onBlur={item.kind === "note" ? scheduleHoverPreviewDismissal : undefined}
-                          onClick={() => {
-                            cancelHoverPreviewDismissal();
-                            setHoverPreview(null);
-                            void openItem(item);
-                          }}
-                          onFocus={item.kind === "note" ? (event) => showHoverPreview(item, event.currentTarget) : undefined}
-                          onPointerEnter={item.kind === "note" ? (event) => showHoverPreview(item, event.currentTarget) : undefined}
-                          onPointerLeave={item.kind === "note" ? scheduleHoverPreviewDismissal : undefined}
-                          type="button"
-                        >
-                          <span className={cn("grid size-7 shrink-0 place-items-center rounded-[5px]", item.kind === "note" ? "bg-primary/10 text-primary" : "bg-secondary text-secondary-foreground")}>
-                            {item.kind === "note" ? <NoteIcon className="size-3.5" motion="press" /> : <AttachmentIcon className="size-3.5" motion="press" />}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-medium text-foreground">{item.kind === "note" ? noteTitle(item) : item.name}</span>
-                            <span className="mt-0.5 block truncate text-xs text-muted-foreground">{item.kind === "note" ? formatDate(item.updatedAt) : formatBytes(item.size)}</span>
-                          </span>
-                          {isOpen ? <span className="size-1.5 shrink-0 rounded-full bg-primary" title="Открыто во вкладке" /> : null}
-                        </button>
-                      );
-                    })}
-
-                    {visibleItems.length === 0 && (folderLocation.kind === "all" || childFolders.length === 0) ? (
-                      <div className="px-2 py-6">
+                {libraryView === "tree" ? (
+                  <ul aria-label="Дерево папок и файлов" className="mt-2 grid gap-0.5">
+                    {rootFolders.map((folder) => renderVaultFolder(folder, 0))}
+                    {rootItems.map((item) => renderVaultFile(item, 0))}
+                    {items.length === 0 ? (
+                      <li className="px-2 py-6">
                         <BookIcon className="size-4 text-muted-foreground" motion="none" />
-                        <p className="mt-2 text-xs leading-5 text-muted-foreground">В этой папке пока нет файлов.</p>
-                      </div>
+                        <p className="mt-2 text-xs leading-5 text-muted-foreground">Создайте первую Markdown-заметку или добавьте файл.</p>
+                      </li>
                     ) : null}
-                  </div>
+                  </ul>
+                ) : (
+                  <ul aria-label="Все файлы Vault" className="mt-2 grid gap-0.5">
+                    {items.map((item) => renderVaultFile(item, 0, true))}
+                    {items.length === 0 ? (
+                      <li className="px-2 py-6">
+                        <BookIcon className="size-4 text-muted-foreground" motion="none" />
+                        <p className="mt-2 text-xs leading-5 text-muted-foreground">В Vault пока нет файлов.</p>
+                      </li>
+                    ) : null}
+                  </ul>
                 )}
               </section>
             ) : null}
