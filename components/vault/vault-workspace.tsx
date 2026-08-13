@@ -3,6 +3,7 @@
 import Link from "next/link";
 import * as React from "react";
 import { createPortal } from "react-dom";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -632,6 +633,7 @@ function LoadingCanvas() {
 }
 
 function VaultWorkspace() {
+  const prefersReducedMotion = useReducedMotion();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const canvasScrollRef = React.useRef<HTMLDivElement>(null);
@@ -1575,65 +1577,84 @@ function VaultWorkspace() {
           className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] bg-[var(--editor)]"
           style={{ gridArea: "canvas" }}
         >
-          <nav aria-label="Открытые файлы" className="row-start-1 z-20 flex min-w-0 items-end border-b bg-muted/70 px-1.5 pt-1.5">
+          <nav aria-label="Открытые файлы" className="row-start-1 z-20 flex min-w-0 items-center border-b bg-muted/55 px-2 py-1.5">
             <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <div className="flex min-w-max items-stretch gap-1" role="tablist">
-                {tabs.map((tab) => {
-                  const path = tab.item.path;
-                  const isActive = activePath === path && workspaceView === "document";
-                  const pane = paneForPath(paneTabs, path);
-                  const tabIsDirty = tab.item.kind === "note" && tab.content !== tab.savedContent;
-                  const title = tab.item.kind === "note" ? noteTitle(tab.item) : tab.item.name;
+              <div className="flex min-w-max items-center gap-1" role="tablist">
+                <AnimatePresence initial={false}>
+                  {tabs.map((tab) => {
+                    const path = tab.item.path;
+                    const isActive = activePath === path && workspaceView === "document";
+                    const pane = paneForPath(paneTabs, path);
+                    const tabIsDirty = tab.item.kind === "note" && tab.content !== tab.savedContent;
+                    const title = tab.item.kind === "note" ? noteTitle(tab.item) : tab.item.name;
 
-                  return (
-                    <div
-                      className={cn(
-                        "group/tab relative flex h-10 min-w-36 max-w-60 items-center overflow-hidden rounded-t-[14px] rounded-b-lg border border-transparent text-muted-foreground transition-[background-color,border-color,color] duration-150 hover:bg-background/45 hover:text-foreground motion-reduce:transition-none",
-                        isActive && "z-10 -mb-px rounded-b-none border-border border-b-[var(--editor)] bg-[var(--editor)] font-medium text-foreground",
-                      )}
-                      key={path}
-                    >
-                      <button
-                        aria-controls={pane ? `workspace-pane-${pane}` : undefined}
-                        aria-selected={isActive}
-                        className="flex min-w-0 flex-1 items-center gap-2 self-stretch px-3 text-left text-xs outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70 motion-reduce:transition-none"
-                        onClick={() => activateTab(path)}
-                        role="tab"
-                        title={path}
-                        type="button"
-                      >
-                        {tab.item.kind === "note"
-                          ? <NoteIcon className="size-3.5 shrink-0" motion="press" />
-                          : <AttachmentIcon className="size-3.5 shrink-0" motion="press" />}
-                        <span className="truncate">{title}</span>
-                        {tabIsDirty ? <span aria-label="Есть несохранённые изменения" className="size-1.5 shrink-0 rounded-full bg-primary" /> : null}
-                        {pane && pane !== "center" ? (
-                          <span className="shrink-0 rounded-[4px] bg-muted px-1 py-0.5 text-[9px] font-medium text-muted-foreground">{paneLabels[pane]}</span>
-                        ) : null}
-                      </button>
-                      <button
-                        aria-label={`Закрыть ${title}`}
+                    return (
+                      <motion.div
+                        animate={{ opacity: 1, scale: 1, x: 0 }}
                         className={cn(
-                          "mr-1 grid size-7 shrink-0 place-items-center rounded-full opacity-0 outline-none transition-[background-color,opacity] duration-150 hover:bg-muted hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/70 motion-reduce:transition-none group-hover/tab:opacity-70",
-                          isActive && "opacity-60",
+                          "group/tab relative flex h-9 min-w-32 max-w-52 items-center overflow-hidden rounded-lg text-muted-foreground transition-[background-color,color] duration-150 hover:bg-background/50 hover:text-foreground motion-reduce:transition-none",
+                          isActive && "text-foreground",
                         )}
-                        onClick={() => closeTab(path)}
-                        title={`Закрыть ${title}`}
-                        type="button"
+                        exit={prefersReducedMotion ? undefined : { opacity: 0, scale: 0.96, x: -6 }}
+                        initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.96, x: -6 }}
+                        key={path}
+                        layout={prefersReducedMotion ? false : "position"}
+                        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                       >
-                        <CloseIcon className="size-3.5" motion="press" />
-                      </button>
-                    </div>
-                  );
-                })}
+                        {isActive ? (
+                          prefersReducedMotion ? (
+                            <span aria-hidden="true" className="absolute inset-0 rounded-lg bg-[var(--editor)] shadow-sm ring-1 ring-border/70" />
+                          ) : (
+                            <motion.span
+                              aria-hidden="true"
+                              className="absolute inset-0 rounded-lg bg-[var(--editor)] shadow-sm ring-1 ring-border/70"
+                              layoutId="workspace-active-tab"
+                              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                            />
+                          )
+                        ) : null}
+                        <button
+                          aria-controls={pane ? `workspace-pane-${pane}` : undefined}
+                          aria-selected={isActive}
+                          className="relative z-10 flex min-w-0 flex-1 items-center gap-2 self-stretch rounded-lg pl-3 pr-1 text-left text-xs font-medium outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70 motion-reduce:transition-none"
+                          onClick={() => activateTab(path)}
+                          role="tab"
+                          title={path}
+                          type="button"
+                        >
+                          {tab.item.kind === "note"
+                            ? <NoteIcon className={cn("size-3.5 shrink-0 transition-colors duration-150", isActive && "text-primary")} motion="press" />
+                            : <AttachmentIcon className={cn("size-3.5 shrink-0 transition-colors duration-150", isActive && "text-primary")} motion="press" />}
+                          <span className="truncate">{title}</span>
+                          {tabIsDirty ? <span aria-label="Есть несохранённые изменения" className="size-1.5 shrink-0 rounded-full bg-primary" /> : null}
+                          {pane && pane !== "center" ? (
+                            <span className="shrink-0 rounded-[4px] bg-muted px-1 py-0.5 text-[9px] font-medium text-muted-foreground">{paneLabels[pane]}</span>
+                          ) : null}
+                        </button>
+                        <button
+                          aria-label={`Закрыть ${title}`}
+                          className={cn(
+                            "relative z-10 mr-0.5 grid size-8 shrink-0 place-items-center rounded-md opacity-0 outline-none transition-[background-color,opacity] duration-150 hover:bg-muted hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/70 motion-reduce:transition-none group-hover/tab:opacity-70",
+                            isActive && "opacity-55",
+                          )}
+                          onClick={() => closeTab(path)}
+                          title={`Закрыть ${title}`}
+                          type="button"
+                        >
+                          <CloseIcon className="size-3.5" motion="press" />
+                        </button>
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
                 {tabs.length === 0 ? (
-                  <p className="flex h-10 items-center px-4 text-xs text-muted-foreground">Откройте файл из Vault</p>
+                  <p className="flex h-9 items-center px-3 text-xs text-muted-foreground">Откройте файл из Vault</p>
                 ) : null}
               </div>
             </div>
 
-            <div aria-label="Разделить экран" className="ml-1 mr-0.5 hidden h-8 shrink-0 self-center items-center gap-0.5 rounded-lg bg-background/45 px-1.5 md:flex" role="group">
-              <span className="mr-1 whitespace-nowrap px-1 text-[10px] tabular-nums text-muted-foreground" title={`${visiblePanes} из ${MAX_VISIBLE_PANES} панелей на экране`}>
+            <div aria-label="Разделить экран" className="ml-2 hidden h-8 shrink-0 self-center items-center gap-0.5 border-l border-border/70 pl-2 md:flex" role="group">
+              <span className="mr-1 min-w-8 whitespace-nowrap text-center text-[10px] tabular-nums text-muted-foreground" title={`${visiblePanes} из ${MAX_VISIBLE_PANES} панелей на экране`}>
                 {visiblePanes}/{MAX_VISIBLE_PANES}
               </span>
               {splitOptions.map(({ value, label, Icon }) => {
@@ -1643,7 +1664,7 @@ function VaultWorkspace() {
                 return (
                   <button
                     aria-label={label}
-                    className="grid size-7 place-items-center rounded-[5px] text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70 disabled:pointer-events-none disabled:opacity-35"
+                    className="grid size-8 place-items-center rounded-md text-muted-foreground outline-none transition-colors duration-150 hover:bg-background/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70 disabled:pointer-events-none disabled:opacity-35"
                     disabled={isDisabled}
                     key={value}
                     onClick={() => placeActiveTab(value)}
