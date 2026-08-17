@@ -188,6 +188,10 @@
   pointer-events: none;
 }
 
+.alive-icon[data-icon-motion="hover"] {
+  pointer-events: auto;
+}
+
 .alive-icon > svg {
   display: block;
   overflow: visible;
@@ -206,13 +210,12 @@
   transition: color 150ms cubic-bezier(0.25, 1, 0.5, 1), transform 150ms cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-:where(button, a, label, [role="button"], [role="tab"], [data-icon-trigger]):is(:hover, :focus-visible) > .alive-icon[data-icon-motion="hover"],
-:where(button, a, label, [role="button"], [role="tab"], [data-icon-trigger]):is(:hover, :focus-visible) .alive-icon[data-icon-motion="hover"] {
+.alive-icon[data-icon-motion="hover"]:hover {
   transform: translateY(-0.5px);
 }
 
-:where(button, a, label, [role="button"], [role="tab"], [data-icon-trigger]):active > .alive-icon:is([data-icon-motion="hover"], [data-icon-motion="press"]),
-:where(button, a, label, [role="button"], [role="tab"], [data-icon-trigger]):active .alive-icon:is([data-icon-motion="hover"], [data-icon-motion="press"]) {
+:where(button, a, label, [role="button"], [role="tab"], [data-icon-trigger]):active > .alive-icon[data-icon-motion="press"],
+:where(button, a, label, [role="button"], [role="tab"], [data-icon-trigger]):active .alive-icon[data-icon-motion="press"] {
   transform: scale(0.94);
   transition-duration: 100ms;
 }
@@ -257,6 +260,34 @@
 
 @keyframes border-beam-travel {
   to { offset-distance: 100%; }
+}
+
+@media (max-width: 899px) {
+  .vault-workspace-shell[data-panel-presentation="expanded"]:is(
+    [data-panel-position="left"],
+    [data-panel-position="right"]
+  ) {
+    grid-template-areas: "canvas" !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .vault-workspace-shell[data-panel-presentation="expanded"]:is(
+    [data-panel-position="left"],
+    [data-panel-position="right"]
+  ) > .vault-workspace-panel {
+    position: fixed;
+    inset-block: 0;
+    z-index: 40;
+    inline-size: min(20rem, calc(100vw - 3rem));
+  }
+
+  .vault-workspace-shell[data-panel-presentation="expanded"][data-panel-position="left"] > .vault-workspace-panel {
+    inset-inline-start: 0;
+  }
+
+  .vault-workspace-shell[data-panel-presentation="expanded"][data-panel-position="right"] > .vault-workspace-panel {
+    inset-inline-end: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

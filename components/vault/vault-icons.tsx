@@ -17,6 +17,8 @@ import FileDocumentSvg from "@iconify-react/line-md/file-document";
 import FileDocumentPlusSvg from "@iconify-react/line-md/file-document-plus";
 import FolderSvg from "@iconify-react/line-md/folder";
 import FolderArrowRightSvg from "@iconify-react/line-md/folder-arrow-right";
+import FolderPlusSvg from "@iconify-react/line-md/folder-plus";
+import HomeSimpleSvg from "@iconify-react/line-md/home-simple";
 import LinkSvg from "@iconify-react/line-md/link";
 import ListSvg from "@iconify-react/line-md/list-3";
 import LoadingSvg from "@iconify-react/line-md/loading-loop";
@@ -26,6 +28,7 @@ import MoonSvg from "@iconify-react/line-md/moon";
 import PlusSvg from "@iconify-react/line-md/plus";
 import SearchSvg from "@iconify-react/line-md/search";
 import SunnySvg from "@iconify-react/line-md/sunny-outline";
+import TrashSvg from "@iconify-react/line-md/trash";
 import UploadSvg from "@iconify-react/line-md/upload-outline";
 import type { SVGProps } from "react";
 
@@ -72,7 +75,9 @@ const FileDocumentPlusIcon = createAppIcon(FileDocumentPlusSvg, "FileDocumentPlu
 const FitIcon = createAppIcon(ArrowsDiagonalSvg, "FitIcon");
 const FolderIcon = createAppIcon(FolderSvg, "FolderIcon");
 const FolderOpenIcon = createAppIcon(FolderArrowRightSvg, "FolderOpenIcon");
+const FolderPlusIcon = createAppIcon(FolderPlusSvg, "FolderPlusIcon");
 const GraphIcon = createAppIcon(CompassSvg, "GraphIcon");
+const HomeIcon = createAppIcon(HomeSimpleSvg, "HomeIcon");
 const LoadingIcon = createAppIcon(LoadingSvg, "LoadingIcon");
 const MinusIcon = createAppIcon(MinusSvg, "MinusIcon");
 const MonitorIcon = createAppIcon(MonitorSvg, "MonitorIcon");
@@ -81,6 +86,7 @@ const NoteIcon = createAppIcon(FileDocumentSvg, "NoteIcon");
 const PlusIcon = createAppIcon(PlusSvg, "PlusIcon");
 const SearchIcon = createAppIcon(SearchSvg, "SearchIcon");
 const SunIcon = createAppIcon(SunnySvg, "SunIcon");
+const TrashIcon = createAppIcon(TrashSvg, "TrashIcon");
 const UploadIcon = createAppIcon(UploadSvg, "UploadIcon");
 
 export {
@@ -102,7 +108,9 @@ export {
   FitIcon,
   FolderIcon,
   FolderOpenIcon,
+  FolderPlusIcon,
   GraphIcon,
+  HomeIcon,
   LoadingIcon,
   MinusIcon,
   MonitorIcon,
@@ -111,6 +119,7 @@ export {
   PlusIcon,
   SearchIcon,
   SunIcon,
+  TrashIcon,
   UploadIcon,
 };
 export type { AppIconProps };

@@ -40,8 +40,6 @@ function AliveIcon({ className, icon: Icon, motion = "hover" }: AliveIconProps) 
     const host = hostRef.current;
     if (!host || motion === "loop" || motion === "none") return undefined;
 
-    const trigger = host.closest<HTMLElement>(INTERACTIVE_PARENT);
-    if (!trigger) return undefined;
     const replay = () => {
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
       if (resetTimerRef.current !== null) window.clearTimeout(resetTimerRef.current);
@@ -53,19 +51,31 @@ function AliveIcon({ className, icon: Icon, motion = "hover" }: AliveIconProps) 
         resetTimerRef.current = null;
       }, 1600);
     };
+    const stop = () => {
+      if (resetTimerRef.current !== null) {
+        window.clearTimeout(resetTimerRef.current);
+        resetTimerRef.current = null;
+      }
+      setIsPlaying(false);
+    };
 
     if (motion === "press") {
+      const trigger = host.closest<HTMLElement>(INTERACTIVE_PARENT);
+      if (!trigger) return undefined;
       trigger.addEventListener("click", replay);
+      return () => {
+        stop();
+        trigger.removeEventListener("click", replay);
+      };
     } else {
-      trigger.addEventListener("pointerenter", replay);
-      trigger.addEventListener("focusin", replay);
+      host.addEventListener("pointerenter", replay);
+      host.addEventListener("pointerleave", stop);
     }
 
     return () => {
-      if (resetTimerRef.current !== null) window.clearTimeout(resetTimerRef.current);
-      trigger.removeEventListener("click", replay);
-      trigger.removeEventListener("pointerenter", replay);
-      trigger.removeEventListener("focusin", replay);
+      stop();
+      host.removeEventListener("pointerenter", replay);
+      host.removeEventListener("pointerleave", stop);
     };
   }, [motion]);
 

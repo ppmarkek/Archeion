@@ -1,31 +1,39 @@
 "use client";
 
-import Link from "next/link";
 import * as React from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { BrainGraph } from "@/components/vault/brain-graph";
 import {
-  ArcheionMark,
+  VaultLibrary,
+  type VaultLibraryCreateInput,
+  type VaultLibraryItem,
+  type VaultLibraryMoveInput,
+  type VaultLibraryPresentation,
+  type VaultLibrarySearchResult,
+  type VaultLibraryTarget,
+} from "@/components/vault/vault-library";
+import {
   AttachmentIcon,
-  BookIcon,
   CheckIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   CloseIcon,
-  CollectionIcon,
   DockBottomIcon,
   DockLeftIcon,
   DockRightIcon,
   DockTopIcon,
   EditIcon,
   ExternalLinkIcon,
-  FileDocumentPlusIcon,
-  FolderIcon,
   FolderOpenIcon,
   GraphIcon,
   LoadingIcon,
@@ -33,22 +41,21 @@ import {
   MoonIcon,
   NoteIcon,
   SunIcon,
-  UploadIcon,
 } from "@/components/vault/vault-icons";
 import type { AppIconProps } from "@/components/vault/vault-icons";
 import { cn, formatRussianCount } from "@/lib/utils";
 
-type VaultEntry = {
+type VaultEntry = VaultLibraryItem;
+
+type VaultFolderEntry = {
   path: string;
   name: string;
-  kind: "note" | "attachment";
-  mimeType: string;
-  size: number;
+  kind: "folder";
   updatedAt: string;
 };
 
 type ApiError = {
-  error?: string;
+  error?: unknown;
 };
 
 type EditorMode = "edit" | "split" | "preview";
@@ -77,7 +84,13 @@ type StoredWorkspace = {
 
 type StoredLibrary = {
   expandedFolders?: unknown;
+  order?: unknown;
   view?: unknown;
+};
+
+type PathChange = {
+  from: string;
+  to: string;
 };
 
 type FormattingHint = {
@@ -101,7 +114,8 @@ type DocumentHeading = {
 const MAX_OPEN_TABS = 8;
 const MAX_VISIBLE_PANES = 4;
 const WORKSPACE_STORAGE_KEY = "archeion-workspace-v1";
-const PANEL_COMPACT_STORAGE_KEY = "archeion-panel-compact";
+const PANEL_MODE_STORAGE_KEY = "archeion-panel-mode-v2";
+const LEGACY_PANEL_COMPACT_STORAGE_KEY = "archeion-panel-compact";
 const LIBRARY_STORAGE_KEY = "archeion-library-v1";
 const paneSlots: PaneSlot[] = ["center", "left", "right", "top", "bottom"];
 const emptyPaneTabs: PaneTabs = {
@@ -200,12 +214,6 @@ function parentFolder(path: string) {
   return lastSlash === -1 ? "" : path.slice(0, lastSlash);
 }
 
-function isItemInFolder(itemPath: string, folder: string) {
-  const itemFolder = parentFolder(itemPath);
-  if (!folder) return itemFolder === "";
-  return itemFolder === folder || itemFolder.startsWith(`${folder}/`);
-}
-
 function folderLabel(path: string) {
   if (!path) return "Корень";
   const name = path.split("/").at(-1) ?? path;
@@ -229,19 +237,20 @@ function collectFolders(items: VaultEntry[]) {
   });
 }
 
-function directItemsInFolder(items: VaultEntry[], folder: string) {
-  return items
-    .filter((item) => parentFolder(item.path) === folder)
-    .sort((left, right) => left.name.localeCompare(right.name, "ru", { numeric: true }));
-}
-
-function directChildFolders(items: VaultEntry[], folder: string) {
-  return collectFolders(items).filter((candidate) => candidate && candidate !== folder && parentFolder(candidate) === folder);
-}
-
 function folderAncestors(folder: string) {
   const parts = folder.split("/").filter(Boolean);
   return parts.map((_, index) => parts.slice(0, index + 1).join("/"));
+}
+
+function remapPath(path: string, changes: readonly PathChange[]) {
+  const orderedChanges = [...changes].sort((left, right) => right.from.length - left.from.length);
+  const change = orderedChanges.find(({ from }) => path === from || path.startsWith(`${from}/`));
+  if (!change) return path;
+  return path === change.from ? change.to : `${change.to}${path.slice(change.from.length)}`;
+}
+
+function pathIsWithin(path: string, parent: string) {
+  return path === parent || path.startsWith(`${parent}/`);
 }
 
 function paneForPath(panes: PaneTabs, path: string) {
@@ -425,14 +434,24 @@ function formatMarkdownSelection(format: TextFormat, value: string) {
 
 async function readError(response: Response) {
   const body = (await response.json().catch(() => ({}))) as ApiError;
-  return body.error ?? "Не удалось выполнить действие";
+  if (typeof body.error === "string") return body.error;
+  if (body.error && typeof body.error === "object" && "message" in body.error) {
+    const message = (body.error as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+  }
+  return "Не удалось выполнить действие";
 }
 
-async function fetchVaultItems() {
+async function fetchVaultSnapshot() {
   const response = await fetch("/api/vault", { cache: "no-store" });
   if (!response.ok) throw new Error(await readError(response));
-  const body = (await response.json()) as { items: VaultEntry[] };
-  return body.items;
+  const body = (await response.json()) as { items: VaultEntry[]; folders?: VaultFolderEntry[] };
+  return {
+    folders: body.folders ?? collectFolders(body.items)
+      .filter(Boolean)
+      .map((path) => ({ kind: "folder" as const, name: folderLabel(path), path, updatedAt: "" })),
+    items: body.items,
+  };
 }
 
 async function fetchNoteContent(path: string) {
@@ -442,61 +461,57 @@ async function fetchNoteContent(path: string) {
   return body.content;
 }
 
-function ThemeControls({
-  theme,
-  onChange,
-}: {
-  theme: ThemePreference;
-  onChange: (theme: ThemePreference) => void;
-}) {
-  return (
-    <div aria-label="Оформление" className="flex items-center rounded-md bg-muted p-1" role="group">
-      {themeOptions.map(({ value, label, Icon }) => (
-        <button
-          aria-label={label}
-          aria-pressed={theme === value}
-          className={cn(
-            "grid size-7 place-items-center rounded-[5px] text-muted-foreground outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70",
-            theme === value && "bg-background text-foreground shadow-sm",
-          )}
-          key={value}
-          onClick={() => onChange(value)}
-          title={label}
-          type="button"
-        >
-          <Icon className="size-3.5" />
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function DockControls({
+function PanelSettings({
   position,
-  onChange,
+  theme,
+  onPositionChange,
+  onThemeChange,
+  onHide,
 }: {
   position: PanelPosition;
-  onChange: (position: PanelPosition) => void;
+  theme: ThemePreference;
+  onPositionChange: (position: PanelPosition) => void;
+  onThemeChange: (theme: ThemePreference) => void;
+  onHide: () => void;
 }) {
   return (
-    <div aria-label="Расположение панели" className="flex items-center rounded-md bg-muted p-1" role="group">
-      {dockOptions.map(({ value, label, Icon }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
         <button
-          aria-label={label}
-          aria-pressed={position === value}
-          className={cn(
-            "grid size-7 place-items-center rounded-[5px] text-muted-foreground outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70",
-            position === value && "bg-background text-foreground shadow-sm",
-          )}
-          key={value}
-          onClick={() => onChange(value)}
-          title={label}
+          aria-label="Настройки панели Vault"
+          className="grid size-8 place-items-center rounded-md text-sm font-semibold tracking-[0.08em] text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70"
+          title="Расположение и тема"
           type="button"
         >
-          <Icon className="size-3.5" />
+          <span aria-hidden="true">•••</span>
         </button>
-      ))}
-    </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56 rounded-lg shadow-md">
+        <DropdownMenuLabel>Расположение</DropdownMenuLabel>
+        {dockOptions.map(({ value, label, Icon }) => (
+          <DropdownMenuItem key={value} onSelect={() => onPositionChange(value)}>
+            <Icon className="size-4" motion="none" />
+            <span className="min-w-0 flex-1 truncate">{label.replace("Переместить панель ", "")}</span>
+            {position === value ? <CheckIcon className="size-4 text-primary" motion="none" /> : null}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Тема</DropdownMenuLabel>
+        {themeOptions.map(({ value, label, Icon }) => (
+          <DropdownMenuItem key={value} onSelect={() => onThemeChange(value)}>
+            <Icon className="size-4" motion="none" />
+            <span className="min-w-0 flex-1">{label}</span>
+            {theme === value ? <CheckIcon className="size-4 text-primary" motion="none" /> : null}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={onHide}>
+          <CloseIcon className="size-4" motion="none" />
+          Скрыть Vault
+          <span className="ml-auto text-[10px] text-muted-foreground">⌘/Ctrl B</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -635,6 +650,7 @@ function LoadingCanvas() {
 function VaultWorkspace() {
   const prefersReducedMotion = useReducedMotion();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const importDirectoryRef = React.useRef("");
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const canvasScrollRef = React.useRef<HTMLDivElement>(null);
   const openRequestsRef = React.useRef<Record<string, number>>({});
@@ -643,26 +659,29 @@ function VaultWorkspace() {
   const hoverPreviewRequestsRef = React.useRef(new Set<string>());
   const libraryPreferencesReadyRef = React.useRef(false);
   const panelPreferencesReadyRef = React.useRef(false);
+  const lastVisiblePanelRef = React.useRef<VaultLibraryPresentation>("expanded");
   const themePreferenceReadyRef = React.useRef(false);
   const [items, setItems] = React.useState<VaultEntry[]>([]);
+  const [folders, setFolders] = React.useState<VaultFolderEntry[]>([]);
   const [tabs, setTabs] = React.useState<WorkspaceTab[]>([]);
   const [activePath, setActivePath] = React.useState<string | null>(null);
   const [paneTabs, setPaneTabs] = React.useState<PaneTabs>(emptyPaneTabs);
   const [focusedPane, setFocusedPane] = React.useState<PaneSlot>("center");
-  const [newNoteTitle, setNewNoteTitle] = React.useState("");
   const [libraryView, setLibraryView] = React.useState<LibraryView>("tree");
   const [expandedFolders, setExpandedFolders] = React.useState<string[]>([]);
+  const [libraryOrder, setLibraryOrder] = React.useState<string[]>([]);
   const [graphFolder, setGraphFolder] = React.useState("all");
   const [editorMode, setEditorMode] = React.useState<EditorMode>("edit");
   const [workspaceView, setWorkspaceView] = React.useState<WorkspaceView>("document");
   const [panelPosition, setPanelPosition] = React.useState<PanelPosition>("right");
-  const [isPanelCompact, setIsPanelCompact] = React.useState(false);
+  const [panelPresentation, setPanelPresentation] = React.useState<VaultLibraryPresentation>("expanded");
   const [theme, setTheme] = React.useState<ThemePreference>("system");
   const [isLoading, setIsLoading] = React.useState(true);
   const [isWorkspaceReady, setIsWorkspaceReady] = React.useState(false);
   const [savingPaths, setSavingPaths] = React.useState<string[]>([]);
   const [isCreating, setIsCreating] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
+  const [busyLibraryPaths, setBusyLibraryPaths] = React.useState<string[]>([]);
   const [message, setMessage] = React.useState<string | null>(null);
   const [formattingHint, setFormattingHint] = React.useState<FormattingHint | null>(null);
   const [hoverPreview, setHoverPreview] = React.useState<HoverPreview | null>(null);
@@ -702,12 +721,17 @@ function VaultWorkspace() {
 
   React.useEffect(() => {
     const storedPosition = window.localStorage.getItem("archeion-panel-position");
-    const storedCompact = window.localStorage.getItem(PANEL_COMPACT_STORAGE_KEY);
+    const storedPresentation = window.localStorage.getItem(PANEL_MODE_STORAGE_KEY);
+    const storedCompact = window.localStorage.getItem(LEGACY_PANEL_COMPACT_STORAGE_KEY);
     const frame = window.requestAnimationFrame(() => {
       if (storedPosition === "left" || storedPosition === "right" || storedPosition === "top" || storedPosition === "bottom") {
         setPanelPosition(storedPosition);
       }
-      setIsPanelCompact(storedCompact === "true");
+      if (storedPresentation === "expanded" || storedPresentation === "compact" || storedPresentation === "hidden") {
+        setPanelPresentation(storedPresentation);
+      } else if (storedCompact === "true") {
+        setPanelPresentation("compact");
+      }
       panelPreferencesReadyRef.current = true;
     });
     return () => window.cancelAnimationFrame(frame);
@@ -725,9 +749,13 @@ function VaultWorkspace() {
       ? stored.expandedFolders.filter((folder): folder is string => typeof folder === "string")
       : [];
     const storedView = stored.view === "all" ? "all" : "tree";
+    const storedOrder = Array.isArray(stored.order)
+      ? stored.order.filter((item): item is string => typeof item === "string")
+      : [];
     const frame = window.requestAnimationFrame(() => {
       setExpandedFolders(storedFolders);
       setLibraryView(storedView);
+      setLibraryOrder(storedOrder);
       libraryPreferencesReadyRef.current = true;
     });
     return () => window.cancelAnimationFrame(frame);
@@ -744,16 +772,17 @@ function VaultWorkspace() {
   React.useEffect(() => {
     if (!panelPreferencesReadyRef.current) return;
     window.localStorage.setItem("archeion-panel-position", panelPosition);
-    window.localStorage.setItem(PANEL_COMPACT_STORAGE_KEY, String(isPanelCompact));
-  }, [isPanelCompact, panelPosition]);
+    window.localStorage.setItem(PANEL_MODE_STORAGE_KEY, panelPresentation);
+  }, [panelPosition, panelPresentation]);
 
   React.useEffect(() => {
     if (!libraryPreferencesReadyRef.current) return;
     window.localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify({
       expandedFolders,
+      order: libraryOrder,
       view: libraryView,
     } satisfies StoredLibrary));
-  }, [expandedFolders, libraryView]);
+  }, [expandedFolders, libraryOrder, libraryView]);
 
   React.useEffect(() => {
     function toggleQuickPreview(event: KeyboardEvent) {
@@ -773,6 +802,21 @@ function VaultWorkspace() {
     return () => window.removeEventListener("keydown", toggleQuickPreview);
   }, [paneTabs]);
 
+  React.useEffect(() => {
+    if (panelPresentation !== "hidden") lastVisiblePanelRef.current = panelPresentation;
+  }, [panelPresentation]);
+
+  React.useEffect(() => {
+    function toggleVaultPanel(event: KeyboardEvent) {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "b") return;
+      event.preventDefault();
+      setPanelPresentation((current) => current === "hidden" ? lastVisiblePanelRef.current : "hidden");
+    }
+
+    window.addEventListener("keydown", toggleVaultPanel);
+    return () => window.removeEventListener("keydown", toggleVaultPanel);
+  }, []);
+
   function focusPath(path: string) {
     const existingPane = paneForPath(paneTabs, path);
     if (existingPane) {
@@ -790,13 +834,6 @@ function VaultWorkspace() {
     if (!folder) return;
     const ancestors = folderAncestors(folder);
     setExpandedFolders((current) => [...new Set([...current, ...ancestors])]);
-  }
-
-  function toggleFolder(folder: string) {
-    setLibraryView("tree");
-    setExpandedFolders((current) => current.includes(folder)
-      ? current.filter((candidate) => candidate !== folder)
-      : [...current, folder]);
   }
 
   async function openItem(item: VaultEntry) {
@@ -863,9 +900,10 @@ function VaultWorkspace() {
   }
 
   async function refreshItems() {
-    const nextItems = await fetchVaultItems();
-    setItems(nextItems);
-    return nextItems;
+    const snapshot = await fetchVaultSnapshot();
+    setItems(snapshot.items);
+    setFolders(snapshot.folders);
+    return snapshot.items;
   }
 
   async function loadHoverPreview(item: VaultEntry) {
@@ -898,7 +936,7 @@ function VaultWorkspace() {
     hoverPreviewTimerRef.current = window.setTimeout(() => {
       setHoverPreview(null);
       hoverPreviewTimerRef.current = null;
-    }, 180);
+    }, 100);
   }
 
   function showHoverPreview(item: VaultEntry, target: HTMLButtonElement) {
@@ -906,22 +944,22 @@ function VaultWorkspace() {
 
     cancelHoverPreviewDismissal();
     const targetRect = target.getBoundingClientRect();
-    const previewWidth = Math.min(672, window.innerWidth - 32);
+    const previewWidth = Math.min(352, window.innerWidth - 24);
     const opensToLeft = panelPosition === "right" || (panelPosition !== "left" && targetRect.left > window.innerWidth / 2);
     const left = Math.max(
-      16,
+      12,
       Math.min(
-        window.innerWidth - previewWidth - 16,
-        opensToLeft ? targetRect.left - previewWidth - 16 : targetRect.right + 16,
+        window.innerWidth - previewWidth - 12,
+        opensToLeft ? targetRect.left - previewWidth - 12 : targetRect.right + 12,
       ),
     );
-    const top = Math.max(16, Math.min(window.innerHeight - 336, targetRect.top - 16));
+    const top = Math.max(12, Math.min(window.innerHeight - 232, targetRect.top - 8));
 
+    void loadHoverPreview(item);
     hoverPreviewTimerRef.current = window.setTimeout(() => {
       setHoverPreview({ item, left, top });
       hoverPreviewTimerRef.current = null;
-      void loadHoverPreview(item);
-    }, 150);
+    }, 80);
   }
 
   React.useEffect(() => {
@@ -929,7 +967,8 @@ function VaultWorkspace() {
 
     void (async () => {
       try {
-        const nextItems = await fetchVaultItems();
+        const snapshot = await fetchVaultSnapshot();
+        const nextItems = snapshot.items;
         if (!active) return;
         const restored = sanitiseStoredWorkspace(window.localStorage.getItem(WORKSPACE_STORAGE_KEY), nextItems);
         const itemsByPath = new Map(nextItems.map((item) => [item.path, item]));
@@ -968,6 +1007,7 @@ function VaultWorkspace() {
           : paneForPath(restoredPanes, restoredActivePath ?? "") ?? "center";
 
         setItems(nextItems);
+        setFolders(snapshot.folders);
         setTabs(restoredTabs);
         setActivePath(restoredActivePath);
         setPaneTabs(restoredPanes);
@@ -1002,8 +1042,7 @@ function VaultWorkspace() {
     return () => window.clearTimeout(timer);
   }, [activePath, focusedPane, isWorkspaceReady, paneTabs, tabs]);
 
-  async function createNote(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function createLibraryNote({ directory, name }: VaultLibraryCreateInput) {
     setIsCreating(true);
     setMessage(null);
 
@@ -1011,7 +1050,7 @@ function VaultWorkspace() {
       const response = await fetch("/api/vault", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: newNoteTitle }),
+        body: JSON.stringify({ directory, title: name, type: "note" }),
       });
       if (!response.ok) throw new Error(await readError(response));
 
@@ -1019,9 +1058,10 @@ function VaultWorkspace() {
       revealFolder(parentFolder(body.item.path));
       await refreshItems();
       await openItem(body.item);
-      setNewNoteTitle("");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось создать заметку");
+      const reason = error instanceof Error ? error.message : "Не удалось создать заметку";
+      setMessage(reason);
+      throw error;
     } finally {
       setIsCreating(false);
     }
@@ -1038,6 +1078,7 @@ function VaultWorkspace() {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("directory", importDirectoryRef.current);
       const response = await fetch("/api/vault/upload", {
         method: "POST",
         body: formData,
@@ -1053,6 +1094,247 @@ function VaultWorkspace() {
     } finally {
       setIsUploading(false);
     }
+  }
+
+  async function createLibraryFolder({ directory, name }: VaultLibraryCreateInput) {
+    setMessage(null);
+    setBusyLibraryPaths((current) => [...new Set([...current, directory || "__root__"])]);
+
+    try {
+      const response = await fetch("/api/vault", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ directory, name, type: "folder" }),
+      });
+      if (!response.ok) throw new Error(await readError(response));
+
+      const body = (await response.json()) as { folder: VaultFolderEntry };
+      await refreshItems();
+      revealFolder(body.folder.path);
+      setMessage(`Папка «${body.folder.name}» создана`);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Не удалось создать папку";
+      setMessage(reason);
+      throw error;
+    } finally {
+      setBusyLibraryPaths((current) => current.filter((path) => path !== (directory || "__root__")));
+    }
+  }
+
+  function normalisePathChanges(body: { oldPath?: string; newPath?: string; pathChanges?: PathChange[] }) {
+    if (Array.isArray(body.pathChanges) && body.pathChanges.length > 0) return body.pathChanges;
+    return body.oldPath && body.newPath ? [{ from: body.oldPath, to: body.newPath }] : [];
+  }
+
+  function applyPathChanges(changes: readonly PathChange[], nextItems: readonly VaultEntry[]) {
+    if (changes.length === 0) return;
+    const itemsByPath = new Map(nextItems.map((item) => [item.path, item]));
+
+    setTabs((current) => current.map((tab) => {
+      const nextPath = remapPath(tab.item.path, changes);
+      return {
+        ...tab,
+        item: itemsByPath.get(nextPath) ?? {
+          ...tab.item,
+          name: nextPath.split("/").at(-1) ?? tab.item.name,
+          path: nextPath,
+        },
+      };
+    }));
+    setActivePath((current) => current ? remapPath(current, changes) : null);
+    setPaneTabs((current) => paneSlots.reduce<PaneTabs>((next, slot) => ({
+      ...next,
+      [slot]: current[slot] ? remapPath(current[slot], changes) : null,
+    }), { ...emptyPaneTabs }));
+    setExpandedFolders((current) => [...new Set(current.map((folder) => remapPath(folder, changes)))]);
+    setLibraryOrder((current) => current.map((path) => remapPath(path, changes)));
+    setSavingPaths((current) => current.map((path) => remapPath(path, changes)));
+    setGraphFolder((current) => current === "all" ? current : remapPath(current, changes));
+    setHoverPreview(null);
+
+    const nextOpenRequests: Record<string, number> = {};
+    for (const [path, value] of Object.entries(openRequestsRef.current)) {
+      nextOpenRequests[remapPath(path, changes)] = value;
+    }
+    openRequestsRef.current = nextOpenRequests;
+    hoverPreviewRequestsRef.current = new Set(
+      [...hoverPreviewRequestsRef.current].map((path) => remapPath(path, changes)),
+    );
+
+    const nextPreviewCache: Record<string, string | null> = {};
+    for (const [path, value] of Object.entries(hoverPreviewCacheRef.current)) {
+      nextPreviewCache[remapPath(path, changes)] = value;
+    }
+    hoverPreviewCacheRef.current = nextPreviewCache;
+    setHoverPreviewContentByPath((current) => {
+      const next: Record<string, string | null> = {};
+      for (const [path, value] of Object.entries(current)) next[remapPath(path, changes)] = value;
+      return next;
+    });
+  }
+
+  function targetHasPendingOperation(target: VaultLibraryTarget) {
+    const includesPath = (path: string) => target.kind === "folder"
+      ? pathIsWithin(path, target.path)
+      : path === target.path;
+    return savingPaths.some(includesPath)
+      || tabs.some((tab) => tab.isLoading && includesPath(tab.item.path));
+  }
+
+  function requireIdleTarget(target: VaultLibraryTarget) {
+    if (!targetHasPendingOperation(target)) return;
+    const reason = "Дождитесь окончания загрузки или сохранения файла";
+    setMessage(reason);
+    throw new Error(reason);
+  }
+
+  async function renameLibraryTarget(target: VaultLibraryTarget, name: string) {
+    requireIdleTarget(target);
+    setMessage(null);
+    setBusyLibraryPaths((current) => [...new Set([...current, target.path])]);
+
+    try {
+      const response = await fetch("/api/vault/item", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, path: target.path }),
+      });
+      if (!response.ok) throw new Error(await readError(response));
+
+      const body = (await response.json()) as { oldPath?: string; newPath?: string; pathChanges?: PathChange[] };
+      const changes = normalisePathChanges(body);
+      const nextItems = await refreshItems();
+      applyPathChanges(changes, nextItems);
+      setMessage("Название обновлено");
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Не удалось переименовать";
+      setMessage(reason);
+      throw error;
+    } finally {
+      setBusyLibraryPaths((current) => current.filter((path) => path !== target.path));
+    }
+  }
+
+  async function moveLibraryTarget(input: VaultLibraryMoveInput) {
+    requireIdleTarget(input);
+    const currentDirectory = parentFolder(input.path);
+    if (input.destination === currentDirectory) return;
+    if (input.kind === "folder" && pathIsWithin(input.destination, input.path)) {
+      const reason = "Нельзя переместить папку внутрь самой себя";
+      setMessage(reason);
+      throw new Error(reason);
+    }
+
+    setMessage(null);
+    setBusyLibraryPaths((current) => [...new Set([...current, input.path])]);
+    try {
+      const response = await fetch("/api/vault/item", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ destination: input.destination, path: input.path }),
+      });
+      if (!response.ok) throw new Error(await readError(response));
+
+      const body = (await response.json()) as { oldPath?: string; newPath?: string; pathChanges?: PathChange[] };
+      const changes = normalisePathChanges(body);
+      const nextItems = await refreshItems();
+      applyPathChanges(changes, nextItems);
+      revealFolder(input.destination);
+      setMessage(input.destination ? `Перемещено в «${folderLabel(input.destination)}»` : "Перемещено в корень Vault");
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Не удалось переместить";
+      setMessage(reason);
+      throw error;
+    } finally {
+      setBusyLibraryPaths((current) => current.filter((path) => path !== input.path));
+    }
+  }
+
+  function removeTargetFromWorkspace(target: VaultLibraryTarget) {
+    const isRemoved = (path: string) => target.kind === "folder" ? pathIsWithin(path, target.path) : path === target.path;
+    const remainingTabs = tabs.filter((tab) => !isRemoved(tab.item.path));
+    const nextActivePath = activePath && !isRemoved(activePath)
+      ? activePath
+      : remainingTabs[0]?.item.path ?? null;
+    const nextPanes = paneSlots.reduce<PaneTabs>((next, slot) => ({
+      ...next,
+      [slot]: paneTabs[slot] && !isRemoved(paneTabs[slot]) ? paneTabs[slot] : null,
+    }), { ...emptyPaneTabs });
+
+    if (!nextPanes.center && nextActivePath) {
+      const occupied = paneForPath(nextPanes, nextActivePath);
+      if (occupied) nextPanes[occupied] = null;
+      nextPanes.center = nextActivePath;
+    }
+
+    setTabs(remainingTabs);
+    setPaneTabs(nextPanes);
+    setActivePath(nextActivePath);
+    setFocusedPane(paneForPath(nextPanes, nextActivePath ?? "") ?? "center");
+    setExpandedFolders((current) => current.filter((folder) => !isRemoved(folder)));
+    setLibraryOrder((current) => current.filter((path) => !isRemoved(path)));
+    setSavingPaths((current) => current.filter((path) => !isRemoved(path)));
+    setGraphFolder((current) => current !== "all" && isRemoved(current) ? "all" : current);
+    setHoverPreview(null);
+    for (const path of Object.keys(openRequestsRef.current)) {
+      if (isRemoved(path)) delete openRequestsRef.current[path];
+    }
+    for (const path of Object.keys(hoverPreviewCacheRef.current)) {
+      if (isRemoved(path)) delete hoverPreviewCacheRef.current[path];
+    }
+    hoverPreviewRequestsRef.current = new Set(
+      [...hoverPreviewRequestsRef.current].filter((path) => !isRemoved(path)),
+    );
+    setHoverPreviewContentByPath((current) => Object.fromEntries(
+      Object.entries(current).filter(([path]) => !isRemoved(path)),
+    ));
+  }
+
+  async function deleteLibraryTarget(target: VaultLibraryTarget) {
+    requireIdleTarget(target);
+    const hasDirtyNote = tabs.some((tab) => (
+      (target.kind === "folder" ? pathIsWithin(tab.item.path, target.path) : tab.item.path === target.path)
+      && tab.item.kind === "note"
+      && tab.content !== tab.savedContent
+    ));
+    if (hasDirtyNote) {
+      const reason = "Сначала сохраните изменения в открытых заметках";
+      setMessage(reason);
+      throw new Error(reason);
+    }
+
+    setMessage(null);
+    setBusyLibraryPaths((current) => [...new Set([...current, target.path])]);
+    try {
+      const response = await fetch("/api/vault/item", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: target.path }),
+      });
+      if (!response.ok) throw new Error(await readError(response));
+
+      removeTargetFromWorkspace(target);
+      await refreshItems();
+      setMessage(target.kind === "folder" ? "Папка удалена" : "Файл удалён");
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Не удалось удалить";
+      setMessage(reason);
+      throw error;
+    } finally {
+      setBusyLibraryPaths((current) => current.filter((path) => path !== target.path));
+    }
+  }
+
+  async function searchVault(query: string): Promise<readonly VaultLibrarySearchResult[]> {
+    const response = await fetch(`/api/vault/search?q=${encodeURIComponent(query)}`, { cache: "no-store" });
+    if (!response.ok) throw new Error(await readError(response));
+    const body = (await response.json()) as { results: VaultLibrarySearchResult[] };
+    return body.results;
+  }
+
+  function openImportPicker(directory: string) {
+    importDirectoryRef.current = directory;
+    fileInputRef.current?.click();
   }
 
   async function saveNote() {
@@ -1278,8 +1560,6 @@ function VaultWorkspace() {
     window.scrollTo({ behavior, top: Math.max(0, target.getBoundingClientRect().top + window.scrollY - 72) });
   }
 
-  const rootFolders = directChildFolders(items, "");
-  const rootItems = directItemsInFolder(items, "");
   const isDirty = selectedTab?.item.kind === "note" && content !== savedContent;
   const selectedTitle = selected ? (selected.kind === "note" ? noteTitle(selected) : selected.name) : "";
   const isHorizontalDock = panelPosition === "top" || panelPosition === "bottom";
@@ -1291,10 +1571,16 @@ function VaultWorkspace() {
     .map((item) => `${item.path}:${item.size}:${item.updatedAt}`)
     .join("|");
 
-  const sidePanelTrack = isPanelCompact
-    ? "clamp(11rem, 30vw, 15rem)"
-    : "clamp(12rem, 46vw, 20rem)";
-  const horizontalPanelTrack = "clamp(13rem, 32dvh, 20rem)";
+  const sidePanelTrack = panelPresentation === "hidden"
+    ? "0px"
+    : panelPresentation === "compact"
+      ? "3.5rem"
+      : "clamp(17.5rem, 28vw, 20rem)";
+  const horizontalPanelTrack = panelPresentation === "hidden"
+    ? "0px"
+    : panelPresentation === "compact"
+      ? "3.5rem"
+      : "clamp(17rem, 32dvh, 21rem)";
   const workspaceShellStyle: React.CSSProperties = panelPosition === "left"
     ? {
         gridTemplateAreas: '"panel canvas"',
@@ -1314,7 +1600,7 @@ function VaultWorkspace() {
             gridTemplateAreas: '"canvas" "panel"',
             gridTemplateRows: `minmax(0,1fr) ${horizontalPanelTrack}`,
           };
-  const panelBorderClass = {
+  const panelBorderClass = panelPresentation === "hidden" ? "" : {
     bottom: "border-t",
     left: "border-r",
     right: "border-l",
@@ -1477,101 +1763,15 @@ function VaultWorkspace() {
     );
   }
 
-  function renderVaultFile(item: VaultEntry, depth: number, showLocation = false) {
-    const isOpen = tabs.some((tab) => tab.item.path === item.path);
-    const location = parentFolder(item.path) || "Корень Vault";
-
-    return (
-      <li key={item.path}>
-        <button
-          aria-current={selected?.path === item.path ? "page" : undefined}
-          className={cn(
-            "flex min-h-9 w-full items-center gap-2 rounded-md pr-2 text-left outline-none transition-colors duration-150 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/70",
-            selected?.path === item.path && "bg-accent text-accent-foreground",
-          )}
-          onBlur={item.kind === "note" ? scheduleHoverPreviewDismissal : undefined}
-          onClick={() => {
-            cancelHoverPreviewDismissal();
-            setHoverPreview(null);
-            void openItem(item);
-          }}
-          onFocus={item.kind === "note" ? (event) => showHoverPreview(item, event.currentTarget) : undefined}
-          onPointerEnter={item.kind === "note" ? (event) => showHoverPreview(item, event.currentTarget) : undefined}
-          onPointerLeave={item.kind === "note" ? scheduleHoverPreviewDismissal : undefined}
-          style={{ paddingInlineStart: `${4 + depth * 14}px` }}
-          title={item.path}
-          type="button"
-        >
-          {!showLocation ? <span aria-hidden="true" className="size-3.5 shrink-0" /> : null}
-          <span className={cn(
-            "grid size-6 shrink-0 place-items-center rounded-[5px]",
-            item.kind === "note" ? "bg-primary/10 text-primary" : "bg-secondary text-secondary-foreground",
-          )}>
-            {item.kind === "note"
-              ? <NoteIcon className="size-3.5" motion="press" />
-              : <AttachmentIcon className="size-3.5" motion="press" />}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-xs font-medium text-foreground">{item.kind === "note" ? noteTitle(item) : item.name}</span>
-            {showLocation ? <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{location}</span> : null}
-          </span>
-          {isOpen ? <span className="size-1.5 shrink-0 rounded-full bg-primary" title="Открыто во вкладке" /> : null}
-        </button>
-      </li>
-    );
-  }
-
-  function renderVaultFolder(folder: string, depth: number) {
-    const isExpanded = expandedFolders.includes(folder);
-    const childFolders = directChildFolders(items, folder);
-    const childItems = directItemsInFolder(items, folder);
-    const count = items.filter((item) => isItemInFolder(item.path, folder)).length;
-    const label = folderLabel(folder);
-
-    return (
-      <li key={folder}>
-        <button
-          aria-expanded={isExpanded}
-          className={cn(
-            "flex h-9 w-full items-center gap-2 rounded-md pr-2 text-left text-xs outline-none transition-colors duration-150 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/70",
-            isExpanded && "text-foreground",
-          )}
-          onClick={() => toggleFolder(folder)}
-          style={{ paddingInlineStart: `${4 + depth * 14}px` }}
-          title={folder}
-          type="button"
-        >
-          <ChevronRightIcon
-            className={cn(
-              "size-3.5 shrink-0 text-muted-foreground transition-transform duration-150 motion-reduce:transition-none",
-              isExpanded && "rotate-90 text-foreground",
-            )}
-            motion="press"
-          />
-          <span className={cn(
-            "grid size-6 shrink-0 place-items-center rounded-[5px]",
-            isExpanded ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
-          )}>
-            <FolderIcon className="size-3.5" motion="none" />
-          </span>
-          <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
-          <span className="text-[10px] tabular-nums text-muted-foreground">{count}</span>
-        </button>
-
-        {isExpanded ? (
-          <ul aria-label={`Содержимое папки ${label}`} className="grid gap-0.5">
-            {childFolders.map((childFolder) => renderVaultFolder(childFolder, depth + 1))}
-            {childItems.map((item) => renderVaultFile(item, depth + 1))}
-          </ul>
-        ) : null}
-      </li>
-    );
-  }
-
   return (
     <>
       <main className="h-[100dvh] overflow-hidden bg-background text-foreground selection:bg-[var(--selection)]">
-      <div className="grid h-full min-h-0" style={workspaceShellStyle}>
+      <div
+        className="vault-workspace-shell grid h-full min-h-0 transition-[grid-template-columns,grid-template-rows] duration-200 ease-out motion-reduce:transition-none"
+        data-panel-position={panelPosition}
+        data-panel-presentation={panelPresentation}
+        style={workspaceShellStyle}
+      >
         <section
           aria-label="Рабочее полотно"
           className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] bg-[var(--editor)]"
@@ -1829,147 +2029,72 @@ function VaultWorkspace() {
 
         <aside
           aria-label="Панель Vault"
-          className={cn("flex min-h-0 min-w-0 flex-col overflow-hidden bg-sidebar/70", panelBorderClass)}
+          className={cn(
+            "vault-workspace-panel relative flex min-h-0 min-w-0 flex-col bg-sidebar/80 transition-[opacity] duration-150",
+            panelPresentation === "hidden" ? "overflow-visible" : "overflow-hidden",
+            panelBorderClass,
+          )}
+          data-panel-position={panelPosition}
+          data-panel-presentation={panelPresentation}
           style={{ gridArea: "panel" }}
         >
-          <header className={cn(
-            "border-b px-3",
-            isHorizontalDock
-              ? "flex min-h-16 items-center justify-between gap-2"
-              : "flex shrink-0 flex-col items-stretch gap-2 py-2.5",
-          )}>
-            <div className="flex min-w-0 items-center justify-between gap-2">
-              <Link className="flex min-w-0 items-center gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/70" href="/">
-                <span className="grid size-7 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground">
-                  <ArcheionMark className="size-4" />
-                </span>
-                <span className="truncate text-sm font-semibold tracking-[-0.02em]">Vault</span>
-              </Link>
-              {!isHorizontalDock ? (
-                <button
-                  aria-label={isPanelCompact ? "Расширить боковую панель" : "Уменьшить боковую панель"}
-                  aria-pressed={isPanelCompact}
-                  className="grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70"
-                  onClick={() => setIsPanelCompact((current) => !current)}
-                  title={isPanelCompact ? "Расширить панель" : "Уменьшить панель"}
-                  type="button"
-                >
-                  {panelPosition === "right"
-                    ? isPanelCompact
-                      ? <ChevronLeftIcon className="size-4" motion="press" />
-                      : <ChevronRightIcon className="size-4" motion="press" />
-                    : isPanelCompact
-                      ? <ChevronRightIcon className="size-4" motion="press" />
-                      : <ChevronLeftIcon className="size-4" motion="press" />}
-                </button>
-              ) : null}
-            </div>
-            <div className={cn("flex shrink-0 items-center gap-1", !isHorizontalDock && "w-full flex-wrap justify-between")}>
-              <DockControls onChange={setPanelPosition} position={panelPosition} />
-              <ThemeControls onChange={setTheme} theme={theme} />
-            </div>
-          </header>
-
-          <div className="border-b px-3 py-3">
-            <form className="flex gap-2" onSubmit={createNote}>
-              <label className="sr-only" htmlFor="note-title">Название новой заметки</label>
-              <Input
-                className="h-9 rounded-md bg-background px-2.5 text-sm shadow-none"
-                id="note-title"
-                onChange={(event) => setNewNoteTitle(event.target.value)}
-                placeholder="Новая заметка"
-                value={newNoteTitle}
+          <input ref={fileInputRef} className="sr-only" type="file" onChange={uploadFile} />
+          <VaultLibrary
+            busyPaths={[
+              ...busyLibraryPaths,
+              ...savingPaths,
+              ...tabs.filter((tab) => tab.isLoading).map((tab) => tab.item.path),
+              ...(isCreating ? ["__create__"] : []),
+              ...(isUploading ? ["__upload__"] : []),
+            ]}
+            className={panelPresentation === "hidden"
+              ? cn(
+                  "fixed z-30",
+                  panelPosition === "left" && "left-0 top-1/2 -translate-y-1/2",
+                  panelPosition === "right" && "right-0 top-1/2 -translate-y-1/2",
+                  panelPosition === "top" && "left-1/2 top-0 -translate-x-1/2",
+                  panelPosition === "bottom" && "bottom-0 left-1/2 -translate-x-1/2",
+                )
+              : "h-full"}
+            edge={panelPosition === "right" ? "right" : "left"}
+            expandedFolders={expandedFolders}
+            folders={folders.map((folder) => folder.path)}
+            isLoading={isLoading}
+            items={items}
+            onCreateFolder={createLibraryFolder}
+            onCreateNote={createLibraryNote}
+            onDelete={deleteLibraryTarget}
+            onExpandedFoldersChange={setExpandedFolders}
+            onImport={openImportPicker}
+            onMove={moveLibraryTarget}
+            onOpenItem={(item) => {
+              cancelHoverPreviewDismissal();
+              setHoverPreview(null);
+              void openItem(item);
+            }}
+            onOrderChange={setLibraryOrder}
+            onPresentationChange={setPanelPresentation}
+            onPreviewEnd={scheduleHoverPreviewDismissal}
+            onPreviewItem={showHoverPreview}
+            onRename={renameLibraryTarget}
+            onSearch={searchVault}
+            onViewChange={setLibraryView}
+            openPaths={tabs.map((tab) => tab.item.path)}
+            order={libraryOrder}
+            orientation={isHorizontalDock ? "horizontal" : "vertical"}
+            presentation={panelPresentation}
+            selectedPath={selected?.path}
+            settings={(
+              <PanelSettings
+                onHide={() => setPanelPresentation("hidden")}
+                onPositionChange={setPanelPosition}
+                onThemeChange={setTheme}
+                position={panelPosition}
+                theme={theme}
               />
-              <Button className="h-9 shrink-0 rounded-md px-3 shadow-none" disabled={isCreating} size="sm" type="submit">
-                {isCreating ? <LoadingIcon className="size-4" motion="loop" /> : <FileDocumentPlusIcon className="size-4" />}
-                <span className="sr-only">Создать заметку</span>
-              </Button>
-            </form>
-            <input ref={fileInputRef} className="sr-only" type="file" onChange={uploadFile} />
-            <button
-              className="mt-2 flex h-8 w-full items-center gap-2 rounded-md px-1.5 text-left text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/70"
-              disabled={isUploading}
-              onClick={() => fileInputRef.current?.click()}
-              type="button"
-            >
-              {isUploading ? <LoadingIcon className="size-3.5" motion="loop" /> : <UploadIcon className="size-3.5" />}
-              <span className="truncate">{isUploading ? "Добавляем файл…" : "Добавить файл"}</span>
-            </button>
-          </div>
-
-          <div aria-busy={isLoading} className="min-h-0 flex-1 overflow-y-auto p-3">
-            {isLoading ? (
-              <div className="space-y-2">
-                <div className="h-10 animate-pulse rounded-md bg-muted" />
-                <div className="h-10 animate-pulse rounded-md bg-muted" />
-                <div className="h-10 animate-pulse rounded-md bg-muted" />
-              </div>
-            ) : null}
-
-            {!isLoading ? (
-              <section aria-labelledby="folder-browser-heading">
-                <header className="mb-2 flex min-h-9 items-center gap-2 px-1">
-                  <div className="min-w-0 flex-1">
-                    <h2 className="truncate text-xs font-semibold text-foreground" id="folder-browser-heading">Файлы</h2>
-                    <p className="mt-0.5 truncate text-[10px] text-muted-foreground">Папки раскрываются в этом списке</p>
-                  </div>
-                  <span className="text-[10px] tabular-nums text-muted-foreground">{items.length}</span>
-                </header>
-
-                <div aria-label="Представление файлов" className="flex rounded-md bg-muted p-0.5" role="tablist">
-                  <button
-                    aria-selected={libraryView === "tree"}
-                    className={cn(
-                      "flex h-7 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[5px] px-2 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/70",
-                      libraryView === "tree" && "bg-background text-foreground shadow-sm",
-                    )}
-                    onClick={() => setLibraryView("tree")}
-                    role="tab"
-                    type="button"
-                  >
-                    <FolderIcon className="size-3.5" motion="press" />
-                    <span className="truncate">Папки</span>
-                  </button>
-                  <button
-                    aria-selected={libraryView === "all"}
-                    className={cn(
-                      "flex h-7 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[5px] px-2 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/70",
-                      libraryView === "all" && "bg-background text-foreground shadow-sm",
-                    )}
-                    onClick={() => setLibraryView("all")}
-                    role="tab"
-                    type="button"
-                  >
-                    <CollectionIcon className="size-3.5" motion="press" />
-                    <span className="truncate">Все</span>
-                  </button>
-                </div>
-
-                {libraryView === "tree" ? (
-                  <ul aria-label="Дерево папок и файлов" className="mt-2 grid gap-0.5">
-                    {rootFolders.map((folder) => renderVaultFolder(folder, 0))}
-                    {rootItems.map((item) => renderVaultFile(item, 0))}
-                    {items.length === 0 ? (
-                      <li className="px-2 py-6">
-                        <BookIcon className="size-4 text-muted-foreground" motion="none" />
-                        <p className="mt-2 text-xs leading-5 text-muted-foreground">Создайте первую Markdown-заметку или добавьте файл.</p>
-                      </li>
-                    ) : null}
-                  </ul>
-                ) : (
-                  <ul aria-label="Все файлы Vault" className="mt-2 grid gap-0.5">
-                    {items.map((item) => renderVaultFile(item, 0, true))}
-                    {items.length === 0 ? (
-                      <li className="px-2 py-6">
-                        <BookIcon className="size-4 text-muted-foreground" motion="none" />
-                        <p className="mt-2 text-xs leading-5 text-muted-foreground">В Vault пока нет файлов.</p>
-                      </li>
-                    ) : null}
-                  </ul>
-                )}
-              </section>
-            ) : null}
-          </div>
+            )}
+            view={libraryView}
+          />
         </aside>
       </div>
 
@@ -2009,39 +2134,46 @@ function VaultWorkspace() {
         document.body,
       ) : null}
 
-      {hoverPreview && typeof document !== "undefined" ? createPortal(
-        <aside
-          aria-label={`Быстрый просмотр: ${noteTitle(hoverPreview.item)}`}
-          className="fixed z-40 w-[calc(100vw-2rem)] max-w-2xl overflow-hidden rounded-[1.25rem] border bg-popover p-4 text-popover-foreground shadow-lg"
-          onPointerEnter={cancelHoverPreviewDismissal}
-          onPointerLeave={scheduleHoverPreviewDismissal}
-          style={{ left: hoverPreview.left, top: hoverPreview.top }}
-        >
+      {typeof document !== "undefined" ? createPortal(
+        <AnimatePresence initial={false}>
+          {hoverPreview ? (
+            <motion.aside
+              animate={prefersReducedMotion ? undefined : { opacity: 1, scale: 1, y: 0 }}
+              aria-label={`Быстрый просмотр: ${noteTitle(hoverPreview.item)}`}
+              className="fixed z-40 w-[calc(100vw-2rem)] max-w-[22rem] overflow-hidden rounded-xl border bg-popover p-3 text-popover-foreground shadow-lg"
+              exit={prefersReducedMotion ? undefined : { opacity: 0, scale: 0.98, y: 3 }}
+              initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.98, y: 3 }}
+              key={hoverPreview.item.path}
+              onPointerEnter={cancelHoverPreviewDismissal}
+              onPointerLeave={scheduleHoverPreviewDismissal}
+              style={{ left: hoverPreview.left, top: hoverPreview.top }}
+              transition={{ duration: prefersReducedMotion ? 0 : 0.14, ease: [0.16, 1, 0.3, 1] }}
+            >
           <header className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="text-xs font-medium text-muted-foreground">Быстрый просмотр</p>
-              <h2 className="mt-1 truncate text-lg font-semibold tracking-[-0.02em]">{noteTitle(hoverPreview.item)}</h2>
+              <h2 className="mt-0.5 truncate text-base font-semibold tracking-[-0.02em]">{noteTitle(hoverPreview.item)}</h2>
             </div>
-            <span className="shrink-0 rounded-[4px] bg-primary/10 px-2 py-1 text-xs font-medium text-primary">Markdown</span>
+            <span className="shrink-0 rounded-[4px] bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">Markdown</span>
           </header>
 
-          <div className="mt-4 border-t pt-4">
+          <div className="mt-3 border-t pt-3">
             {hoverPreviewContent === undefined ? (
-              <div aria-busy="true" className="space-y-2.5 py-1">
-                <div className="h-4 w-11/12 animate-pulse rounded bg-muted" />
-                <div className="h-4 w-full animate-pulse rounded bg-muted" />
-                <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+              <div aria-busy="true" className="space-y-2 py-0.5">
+                <div className="h-3 w-11/12 animate-pulse rounded bg-muted" />
+                <div className="h-3 w-full animate-pulse rounded bg-muted" />
+                <div className="h-3 w-3/4 animate-pulse rounded bg-muted" />
               </div>
             ) : hoverPreviewContent === null ? (
-              <p className="py-1 text-[15px] leading-7 text-muted-foreground">Не удалось загрузить содержимое заметки.</p>
+              <p className="py-0.5 text-sm leading-5 text-muted-foreground">Не удалось загрузить содержимое заметки.</p>
             ) : (
-              <p className="line-clamp-5 text-[15px] leading-7 text-muted-foreground">
+              <p className="line-clamp-3 text-sm leading-5 text-muted-foreground">
                 {markdownExcerpt(hoverPreviewContent) || "В этой заметке пока нет текста."}
               </p>
             )}
           </div>
 
-          <footer className="mt-4 flex items-center justify-between gap-3 border-t pt-3 text-xs text-muted-foreground">
+          <footer className="mt-3 flex items-center justify-between gap-3 border-t pt-2.5 text-[11px] text-muted-foreground">
             <span>{formatDate(hoverPreview.item.updatedAt)}</span>
             <button
               className="font-medium text-foreground outline-none transition-colors duration-150 hover:text-primary focus-visible:ring-2 focus-visible:ring-ring/70"
@@ -2055,7 +2187,9 @@ function VaultWorkspace() {
               Открыть заметку
             </button>
           </footer>
-        </aside>,
+            </motion.aside>
+          ) : null}
+        </AnimatePresence>,
         document.body,
       ) : null}
     </>
