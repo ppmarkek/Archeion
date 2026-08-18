@@ -188,10 +188,6 @@
   pointer-events: none;
 }
 
-.alive-icon[data-icon-motion="hover"] {
-  pointer-events: auto;
-}
-
 .alive-icon > svg {
   display: block;
   overflow: visible;
@@ -205,19 +201,115 @@
   transition: none !important;
 }
 
-.alive-icon:is([data-icon-motion="hover"], [data-icon-motion="press"]) {
-  transform-origin: center;
-  transition: color 150ms cubic-bezier(0.25, 1, 0.5, 1), transform 150ms cubic-bezier(0.25, 1, 0.5, 1);
+.auto-hide-scrollbar {
+  scrollbar-color: transparent transparent;
+  scrollbar-width: thin;
 }
 
-.alive-icon[data-icon-motion="hover"]:hover {
-  transform: translateY(-0.5px);
+.auto-hide-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-:where(button, a, label, [role="button"], [role="tab"], [data-icon-trigger]):active > .alive-icon[data-icon-motion="press"],
-:where(button, a, label, [role="button"], [role="tab"], [data-icon-trigger]):active .alive-icon[data-icon-motion="press"] {
-  transform: scale(0.94);
-  transition-duration: 100ms;
+.auto-hide-scrollbar::-webkit-scrollbar-track,
+.auto-hide-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.auto-hide-scrollbar::-webkit-scrollbar-thumb {
+  min-height: 36px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-color: transparent;
+  background-clip: padding-box;
+  transition: background-color 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.auto-hide-scrollbar[data-scrolling="true"] {
+  scrollbar-color: color-mix(in oklab, var(--foreground) 34%, transparent) transparent;
+}
+
+.auto-hide-scrollbar[data-scrolling="true"]::-webkit-scrollbar-thumb {
+  background-color: color-mix(in oklab, var(--foreground) 34%, transparent);
+}
+
+.auto-hide-scrollbar[data-scrollbar-leaving="true"]::-webkit-scrollbar-thumb {
+  background-color: transparent;
+}
+
+.auto-hide-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklab, var(--foreground) 48%, transparent);
+}
+
+.auto-hide-scrollbar::-webkit-scrollbar-thumb:active {
+  background-color: color-mix(in oklab, var(--foreground) 62%, transparent);
+}
+
+.vault-panel-reveal {
+  isolation: isolate;
+  transition-duration: 180ms;
+  transition-property: background-color, color, translate;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.vault-panel-reveal[data-orientation="vertical"][data-edge="left"] {
+  translate: -0.3rem 0;
+}
+
+.vault-panel-reveal[data-orientation="vertical"][data-edge="right"] {
+  translate: 0.3rem 0;
+}
+
+@keyframes vault-panel-settings-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.25rem) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes vault-panel-settings-menu-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-0.125rem) scale(0.99);
+  }
+}
+
+.vault-panel-settings-menu {
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+}
+
+.vault-panel-settings-menu[data-state="open"] {
+  animation: vault-panel-settings-menu-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.vault-panel-settings-menu[data-state="closed"] {
+  animation: vault-panel-settings-menu-out 135ms cubic-bezier(0.4, 0, 1, 1);
+  will-change: opacity, transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vault-panel-settings-menu[data-state] {
+    animation: none;
+    will-change: auto;
+  }
+}
+
+.vault-panel-reveal[data-orientation="vertical"][data-edge="left"]:hover,
+.vault-panel-reveal[data-orientation="vertical"][data-edge="left"]:focus-visible,
+.vault-panel-reveal[data-orientation="vertical"][data-edge="right"]:hover,
+.vault-panel-reveal[data-orientation="vertical"][data-edge="right"]:focus-visible {
+  translate: 0 0;
 }
 
 .brain-graph-field {
@@ -262,31 +354,97 @@
   to { offset-distance: 100%; }
 }
 
-@media (max-width: 899px) {
-  .vault-workspace-shell[data-panel-presentation="expanded"]:is(
-    [data-panel-position="left"],
-    [data-panel-position="right"]
-  ) {
-    grid-template-areas: "canvas" !important;
-    grid-template-columns: minmax(0, 1fr) !important;
+@keyframes vault-panel-enter-from-left {
+  from { opacity: 0; transform: translateX(-0.75rem); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes vault-panel-enter-from-right {
+  from { opacity: 0; transform: translateX(0.75rem); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes vault-panel-enter-from-top {
+  from { opacity: 0; transform: translateY(-0.75rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes vault-panel-enter-from-bottom {
+  from { opacity: 0; transform: translateY(0.75rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes vault-panel-reveal-from-left {
+  from { opacity: 0; translate: -1rem 0; }
+  to { opacity: 1; translate: -0.3rem 0; }
+}
+
+@keyframes vault-panel-reveal-from-right {
+  from { opacity: 0; translate: 1rem 0; }
+  to { opacity: 1; translate: 0.3rem 0; }
+}
+
+@keyframes scrollbar-thumb-enter {
+  from { background-color: transparent; }
+  to { background-color: color-mix(in oklab, var(--foreground) 34%, transparent); }
+}
+
+@keyframes scrollbar-thumb-leave {
+  from { background-color: color-mix(in oklab, var(--foreground) 34%, transparent); }
+  to { background-color: transparent; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .auto-hide-scrollbar[data-scrolling="true"]::-webkit-scrollbar-thumb {
+    animation: scrollbar-thumb-enter 160ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  .vault-workspace-shell[data-panel-presentation="expanded"]:is(
-    [data-panel-position="left"],
-    [data-panel-position="right"]
-  ) > .vault-workspace-panel {
-    position: fixed;
-    inset-block: 0;
-    z-index: 40;
-    inline-size: min(20rem, calc(100vw - 3rem));
+  .auto-hide-scrollbar[data-scrollbar-leaving="true"]::-webkit-scrollbar-thumb {
+    animation: scrollbar-thumb-leave 180ms cubic-bezier(0.25, 1, 0.5, 1) forwards;
   }
 
-  .vault-workspace-shell[data-panel-presentation="expanded"][data-panel-position="left"] > .vault-workspace-panel {
-    inset-inline-start: 0;
+  .vault-panel-reveal[data-orientation="vertical"][data-edge="left"] {
+    animation: vault-panel-reveal-from-left 180ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  .vault-workspace-shell[data-panel-presentation="expanded"][data-panel-position="right"] > .vault-workspace-panel {
-    inset-inline-end: 0;
+  .vault-panel-reveal[data-orientation="vertical"][data-edge="right"] {
+    animation: vault-panel-reveal-from-right 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .vault-workspace-panel[data-panel-closing="true"] {
+    pointer-events: none;
+  }
+
+  .vault-workspace-panel[data-panel-position="left"][data-panel-presentation="expanded"] {
+    animation: vault-panel-enter-from-left 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .vault-workspace-panel[data-panel-position="right"][data-panel-presentation="expanded"] {
+    animation: vault-panel-enter-from-right 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .vault-workspace-panel[data-panel-position="top"][data-panel-presentation="expanded"] {
+    animation: vault-panel-enter-from-top 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .vault-workspace-panel[data-panel-position="bottom"][data-panel-presentation="expanded"] {
+    animation: vault-panel-enter-from-bottom 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .vault-workspace-panel[data-panel-closing="true"][data-panel-position="left"] {
+    animation: vault-panel-enter-from-left 180ms cubic-bezier(0.16, 1, 0.3, 1) reverse;
+  }
+
+  .vault-workspace-panel[data-panel-closing="true"][data-panel-position="right"] {
+    animation: vault-panel-enter-from-right 180ms cubic-bezier(0.16, 1, 0.3, 1) reverse;
+  }
+
+  .vault-workspace-panel[data-panel-closing="true"][data-panel-position="top"] {
+    animation: vault-panel-enter-from-top 180ms cubic-bezier(0.16, 1, 0.3, 1) reverse;
+  }
+
+  .vault-workspace-panel[data-panel-closing="true"][data-panel-position="bottom"] {
+    animation: vault-panel-enter-from-bottom 180ms cubic-bezier(0.16, 1, 0.3, 1) reverse;
   }
 }
 

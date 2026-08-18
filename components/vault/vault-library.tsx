@@ -146,6 +146,27 @@ type DropState = {
 const ROOT_TARGET: ContextTarget = { kind: "root", path: "" };
 const SEARCH_SHORTCUT = "k";
 const SEARCH_RESULT_LIMIT = 100;
+const SCROLLBAR_HIDE_DELAY_MS = 700;
+const SCROLLBAR_FADE_MS = 180;
+const scrollbarTimers = new WeakMap<HTMLElement, { fade?: number; hide?: number }>();
+
+function revealScrollbar(element: HTMLElement) {
+  const timers = scrollbarTimers.get(element) ?? {};
+  if (timers.hide !== undefined) window.clearTimeout(timers.hide);
+  if (timers.fade !== undefined) window.clearTimeout(timers.fade);
+
+  element.dataset.scrolling = "true";
+  delete element.dataset.scrollbarLeaving;
+  timers.hide = window.setTimeout(() => {
+    delete element.dataset.scrolling;
+    element.dataset.scrollbarLeaving = "true";
+    timers.fade = window.setTimeout(() => {
+      delete element.dataset.scrollbarLeaving;
+      scrollbarTimers.delete(element);
+    }, SCROLLBAR_FADE_MS);
+  }, SCROLLBAR_HIDE_DELAY_MS);
+  scrollbarTimers.set(element, timers);
+}
 
 function normalisePath(value: string) {
   return value.trim().replaceAll("\\", "/").replace(/^\/+|\/+$/g, "");
@@ -869,22 +890,22 @@ function VaultLibrary({
               "size-3.5 shrink-0 text-muted-foreground transition-transform duration-150 motion-reduce:transition-none",
               isExpanded && "rotate-90 text-foreground",
             )}
-            motion="press"
           />
         ) : !compact ? <span aria-hidden="true" className="size-3.5 shrink-0" /> : null}
 
         <span className={cn(
-          "grid size-7 shrink-0 place-items-center rounded-[5px]",
+          "grid size-7 shrink-0 place-items-center",
+          !compact && "rounded-[5px]",
           node.kind === "folder"
-            ? isExpanded ? "bg-primary/10 text-primary" : "text-muted-foreground"
+            ? isExpanded ? (compact ? "text-primary" : "bg-primary/10 text-primary") : "text-muted-foreground"
             : node.item.kind === "note" ? "text-primary" : "text-muted-foreground",
         )}>
           {isBusy ? <LoadingIcon className="size-4" motion="loop" /> : node.kind === "folder" ? (
-            isExpanded ? <FolderOpenIcon className="size-4" motion="none" /> : <FolderIcon className="size-4" motion="none" />
+            isExpanded ? <FolderOpenIcon className="size-4" /> : <FolderIcon className="size-4" />
           ) : node.item.kind === "note" ? (
-            <BookIcon className="size-4" motion="press" />
+            <BookIcon className="size-4" />
           ) : (
-            <AttachmentIcon className="size-4" motion="press" />
+            <AttachmentIcon className="size-4" />
           )}
         </span>
 
@@ -1013,8 +1034,8 @@ function VaultLibrary({
                   result.item.kind === "note" ? "text-primary" : "text-muted-foreground",
                 )}>
                   {result.item.kind === "note"
-                    ? <BookIcon className="size-4" motion="press" />
-                    : <AttachmentIcon className="size-4" motion="press" />}
+                    ? <BookIcon className="size-4" />
+                    : <AttachmentIcon className="size-4" />}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">
@@ -1042,7 +1063,7 @@ function VaultLibrary({
         <p className="mt-3 text-xs font-medium">Vault пока пуст</p>
         <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Создайте заметку, папку или добавьте файл.</p>
         <Button className="mt-4 h-8 rounded-md px-2.5 text-xs shadow-none" onClick={() => createInDirectory("create-note", "")} size="sm" type="button">
-          <FileDocumentPlusIcon className="size-3.5" />
+          <FileDocumentPlusIcon className="size-3.5" motion="hover" />
           Новая заметка
         </Button>
       </div>
@@ -1073,11 +1094,11 @@ function VaultLibrary({
   const contextTargetBusy = contextTarget ? targetIsBusy(contextTarget, busyPathSet) : false;
   const contextTargetDirectory = contextMenu ? contextDirectory(contextMenu.target) : activeDirectory;
   const compactExpandIcon = edge === "right"
-    ? <ChevronLeftIcon className="size-4" motion="press" />
-    : <ChevronRightIcon className="size-4" motion="press" />;
+    ? <ChevronLeftIcon className="size-4" motion="hover" />
+    : <ChevronRightIcon className="size-4" motion="hover" />;
   const expandedCollapseIcon = edge === "right"
-    ? <ChevronRightIcon className="size-4" motion="press" />
-    : <ChevronLeftIcon className="size-4" motion="press" />;
+    ? <ChevronRightIcon className="size-4" motion="hover" />
+    : <ChevronLeftIcon className="size-4" motion="hover" />;
 
   const sharedOverlays = (
     <>
@@ -1222,9 +1243,12 @@ function VaultLibrary({
         <button
           aria-label="Показать панель Vault"
           className={cn(
-            "grid size-10 place-items-center rounded-lg border bg-sidebar text-sidebar-foreground shadow-sm outline-none transition-[background-color,color,transform] duration-150 hover:bg-accent hover:text-accent-foreground active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-ring/70 motion-reduce:transition-none",
+            "vault-panel-reveal group relative grid h-16 w-10 place-items-center border bg-sidebar text-sidebar-foreground outline-none transition-[background-color,color] duration-150 hover:bg-accent hover:text-accent-foreground active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-ring/70 motion-reduce:transition-none",
+            edge === "left" ? "rounded-l-none rounded-r-xl border-l-0" : "rounded-l-xl rounded-r-none border-r-0",
             className,
           )}
+          data-edge={edge}
+          data-orientation={orientation}
           onClick={() => onPresentationChange("expanded")}
           title="Показать панель Vault"
           type="button"
@@ -1259,7 +1283,7 @@ function VaultLibrary({
             title="Скрыть панель Vault"
             type="button"
           >
-            <CloseIcon className="size-3.5" motion="press" />
+            <CloseIcon className="size-3.5" motion="hover" />
           </button>
         </header>
 
@@ -1274,7 +1298,7 @@ function VaultLibrary({
             title="Поиск по Vault (⌘/Ctrl K)"
             type="button"
           >
-            <SearchIcon className="size-4" />
+            <SearchIcon className="size-4" motion="hover" />
           </button>
           <button
             aria-label="Создать заметку"
@@ -1283,7 +1307,7 @@ function VaultLibrary({
             title={`Создать заметку: ${activeDirectory || "Корень Vault"}`}
             type="button"
           >
-            <FileDocumentPlusIcon className="size-4" />
+            <FileDocumentPlusIcon className="size-4" motion="hover" />
           </button>
           <button
             aria-label="Создать папку"
@@ -1292,7 +1316,7 @@ function VaultLibrary({
             title={`Создать папку: ${activeDirectory || "Корень Vault"}`}
             type="button"
           >
-            <FolderPlusIcon className="size-4" />
+            <FolderPlusIcon className="size-4" motion="hover" />
           </button>
           {onImport ? (
             <button
@@ -1302,7 +1326,7 @@ function VaultLibrary({
               title={`Добавить файл: ${activeDirectory || "Корень Vault"}`}
               type="button"
             >
-              <UploadIcon className="size-4" />
+              <UploadIcon className="size-4" motion="hover" />
             </button>
           ) : null}
         </div>
@@ -1361,7 +1385,7 @@ function VaultLibrary({
             title={view === "tree" ? "Все файлы" : "Папки"}
             type="button"
           >
-            {view === "tree" ? <CollectionIcon className="size-4" motion="press" /> : <FolderIcon className="size-4" motion="press" />}
+            {view === "tree" ? <CollectionIcon className="size-4" /> : <FolderIcon className="size-4" />}
           </button>
           {settings ? <div className="max-h-12 max-w-48 overflow-auto">{settings}</div> : null}
           <button
@@ -1394,7 +1418,7 @@ function VaultLibrary({
             title="Расширить панель Vault"
             type="button"
           >
-            <ArcheionMark className="size-4" />
+            {compactExpandIcon}
           </button>
           <button
             aria-label="Скрыть панель Vault"
@@ -1403,7 +1427,7 @@ function VaultLibrary({
             title="Скрыть панель Vault"
             type="button"
           >
-            <CloseIcon className="size-3.5" motion="press" />
+            <CloseIcon className="size-3.5" motion="hover" />
           </button>
         </header>
 
@@ -1418,7 +1442,7 @@ function VaultLibrary({
             title="Поиск по Vault (⌘/Ctrl K)"
             type="button"
           >
-            <SearchIcon className="size-4" />
+            <SearchIcon className="size-4" motion="hover" />
           </button>
           <button
             aria-label="Создать заметку"
@@ -1427,7 +1451,7 @@ function VaultLibrary({
             title={`Создать заметку: ${activeDirectory || "Корень Vault"}`}
             type="button"
           >
-            <FileDocumentPlusIcon className="size-4" />
+            <FileDocumentPlusIcon className="size-4" motion="hover" />
           </button>
           <button
             aria-label="Создать папку"
@@ -1436,7 +1460,7 @@ function VaultLibrary({
             title={`Создать папку: ${activeDirectory || "Корень Vault"}`}
             type="button"
           >
-            <FolderPlusIcon className="size-4" />
+            <FolderPlusIcon className="size-4" motion="hover" />
           </button>
           {onImport ? (
             <button
@@ -1446,12 +1470,16 @@ function VaultLibrary({
               title={`Добавить файл: ${activeDirectory || "Корень Vault"}`}
               type="button"
             >
-              <UploadIcon className="size-4" />
+              <UploadIcon className="size-4" motion="hover" />
             </button>
           ) : null}
         </div>
 
-        <div aria-busy={isLoading} className="min-h-0 flex-1 overflow-y-auto px-1 py-1">
+        <div
+          aria-busy={isLoading}
+          className="auto-hide-scrollbar min-h-0 flex-1 overflow-y-auto px-1 py-1"
+          onScroll={(event) => revealScrollbar(event.currentTarget)}
+        >
           {isLoading ? (
             <div className="grid gap-1">
               {[0, 1, 2, 3].map((index) => <div className="mx-auto size-8 animate-pulse rounded-md bg-muted" key={index} />)}
@@ -1473,18 +1501,9 @@ function VaultLibrary({
             title={view === "tree" ? "Все файлы" : "Папки"}
             type="button"
           >
-            {view === "tree" ? <CollectionIcon className="size-4" motion="press" /> : <FolderIcon className="size-4" motion="press" />}
+            {view === "tree" ? <CollectionIcon className="size-4" /> : <FolderIcon className="size-4" />}
           </button>
           {settings ? <div className="flex max-h-24 w-full justify-center overflow-auto">{settings}</div> : null}
-          <button
-            aria-label="Расширить панель Vault"
-            className="grid size-8 place-items-center rounded-md text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70"
-            onClick={() => onPresentationChange("expanded")}
-            title="Расширить панель Vault"
-            type="button"
-          >
-            {compactExpandIcon}
-          </button>
         </footer>
         <span aria-live="polite" className="sr-only">{interactionMessage}</span>
         {sharedOverlays}
@@ -1495,21 +1514,21 @@ function VaultLibrary({
   return (
     <section
       aria-label="Панель Vault"
-      className={cn("flex h-full min-h-0 min-w-0 flex-col bg-sidebar/70 text-sidebar-foreground", className)}
+      className={cn("flex h-full min-h-0 min-w-0 flex-col bg-sidebar text-sidebar-foreground", className)}
       onContextMenu={(event) => {
         if (event.target !== event.currentTarget) return;
         event.preventDefault();
         openContextMenu(ROOT_TARGET, event.clientX, event.clientY);
       }}
     >
-      <header className="shrink-0 border-b px-3 py-2.5">
+      <header className="shrink-0 border-b bg-sidebar px-3 py-2.5">
         <div className="flex min-h-9 min-w-0 items-center gap-2">
           <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground">
             <ArcheionMark className="size-4" />
           </span>
-          <h1 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-[-0.02em]">{title}</h1>
+          <h1 className="min-w-0 flex-1 truncate text-[15px] font-semibold tracking-[-0.025em]">{title}</h1>
           {settings ? (
-            <div className="min-w-0 max-w-[45%] overflow-x-auto rounded-md bg-muted/55 p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex shrink-0 items-center">
               {settings}
             </div>
           ) : null}
@@ -1529,12 +1548,12 @@ function VaultLibrary({
             title="Скрыть панель"
             type="button"
           >
-            <CloseIcon className="size-3.5" motion="press" />
+            <CloseIcon className="size-3.5" motion="hover" />
           </button>
         </div>
       </header>
 
-      <div className="shrink-0 border-b px-3 py-3">
+      <div className="h-[6.625rem] shrink-0 border-b bg-sidebar px-3 py-[15px]">
         <div className="relative">
           <label className="sr-only" htmlFor={searchInputId}>Поиск по Vault</label>
           <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" motion="none" />
@@ -1570,7 +1589,7 @@ function VaultLibrary({
               title="Очистить поиск"
               type="button"
             >
-              <CloseIcon className="size-3.5" motion="press" />
+              <CloseIcon className="size-3.5" motion="hover" />
             </button>
           ) : (
             <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-[4px] border bg-muted/70 px-1.5 py-0.5 text-[10px] text-muted-foreground">⌘K</kbd>
@@ -1580,31 +1599,31 @@ function VaultLibrary({
 
         <div aria-label="Создание и импорт" className="mt-2 grid grid-cols-3 gap-1" role="toolbar">
           <button
-            className="flex min-h-8 items-center justify-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70 motion-reduce:transition-none"
+            className="flex min-h-8 items-center justify-center gap-1.5 rounded-md border border-transparent bg-muted/35 px-1.5 text-xs font-medium text-muted-foreground outline-none transition-[background-color,border-color,color,transform] duration-150 hover:border-border hover:bg-accent hover:text-foreground active:translate-y-px focus-visible:ring-2 focus-visible:ring-ring/70 motion-reduce:transition-none"
             onClick={() => createInDirectory("create-note")}
             title={`Создать заметку: ${activeDirectory || "Корень Vault"}`}
             type="button"
           >
-            <FileDocumentPlusIcon className="size-3.5" />
-            <span className="truncate">Заметка</span>
+            <FileDocumentPlusIcon className="size-3.5" motion="hover" />
+            <span className="truncate">Новая</span>
           </button>
           <button
-            className="flex min-h-8 items-center justify-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70 motion-reduce:transition-none"
+            className="flex min-h-8 items-center justify-center gap-1.5 rounded-md border border-transparent bg-muted/35 px-1.5 text-xs font-medium text-muted-foreground outline-none transition-[background-color,border-color,color,transform] duration-150 hover:border-border hover:bg-accent hover:text-foreground active:translate-y-px focus-visible:ring-2 focus-visible:ring-ring/70 motion-reduce:transition-none"
             onClick={() => createInDirectory("create-folder")}
             title={`Создать папку: ${activeDirectory || "Корень Vault"}`}
             type="button"
           >
-            <FolderPlusIcon className="size-3.5" />
+            <FolderPlusIcon className="size-3.5" motion="hover" />
             <span className="truncate">Папка</span>
           </button>
           <button
-            className="flex min-h-8 items-center justify-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70 disabled:pointer-events-none disabled:opacity-40 motion-reduce:transition-none"
+            className="flex min-h-8 items-center justify-center gap-1.5 rounded-md border border-transparent bg-muted/35 px-1.5 text-xs font-medium text-muted-foreground outline-none transition-[background-color,border-color,color,transform] duration-150 hover:border-border hover:bg-accent hover:text-foreground active:translate-y-px focus-visible:ring-2 focus-visible:ring-ring/70 disabled:pointer-events-none disabled:opacity-40 motion-reduce:transition-none"
             disabled={!onImport}
             onClick={() => onImport?.(activeDirectory)}
             title={`Добавить файл: ${activeDirectory || "Корень Vault"}`}
             type="button"
           >
-            <UploadIcon className="size-3.5" />
+            <UploadIcon className="size-3.5" motion="hover" />
             <span className="truncate">Файл</span>
           </button>
         </div>
@@ -1612,7 +1631,7 @@ function VaultLibrary({
 
       <div className="flex shrink-0 items-center gap-2 px-3 pb-2 pt-3">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-xs font-semibold">Файлы</h2>
+          <h2 className="truncate text-[13px] font-semibold tracking-[-0.015em]">Файлы</h2>
           <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
             {isSearchMode ? `${searchResults.length} найдено` : `${items.length} файлов, ${folderPaths.length} папок`}
           </p>
@@ -1640,7 +1659,7 @@ function VaultLibrary({
             role="tab"
             type="button"
           >
-            <FolderIcon className="size-3.5" motion="press" />
+            <FolderIcon className="size-3.5" />
             <span>Папки</span>
           </button>
           <button
@@ -1653,7 +1672,7 @@ function VaultLibrary({
             role="tab"
             type="button"
           >
-            <CollectionIcon className="size-3.5" motion="press" />
+            <CollectionIcon className="size-3.5" />
             <span>Все файлы</span>
           </button>
         </div>
@@ -1661,7 +1680,7 @@ function VaultLibrary({
 
       <div
         aria-busy={isLoading || isSearching}
-        className="min-h-0 flex-1 overflow-y-auto px-3 pb-3 pt-2"
+        className="auto-hide-scrollbar min-h-0 flex-1 overflow-y-auto px-3 pb-3 pt-2"
         onContextMenu={(event) => {
           if ((event.target as HTMLElement).closest("[data-vault-library-path]")) return;
           event.preventDefault();
@@ -1673,6 +1692,7 @@ function VaultLibrary({
           event.dataTransfer.dropEffect = "move";
         }}
         onDrop={handleRootDrop}
+        onScroll={(event) => revealScrollbar(event.currentTarget)}
       >
         {isLoading ? (
           <div className="grid gap-1" aria-label="Загрузка файлов">

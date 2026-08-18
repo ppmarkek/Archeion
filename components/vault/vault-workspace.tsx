@@ -40,6 +40,7 @@ import {
   MonitorIcon,
   MoonIcon,
   NoteIcon,
+  PreviewIcon,
   SunIcon,
 } from "@/components/vault/vault-icons";
 import type { AppIconProps } from "@/components/vault/vault-icons";
@@ -61,13 +62,16 @@ type ApiError = {
 type EditorMode = "edit" | "split" | "preview";
 type WorkspaceView = "document" | "brain";
 type PanelPosition = "left" | "right" | "top" | "bottom";
-type PaneSlot = "center" | PanelPosition;
+type PaneSlot = "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
+type DockTarget = PanelPosition;
+type PaneSplitAxis = "horizontal" | "vertical";
 type ThemePreference = "light" | "system" | "dark";
 type TextFormat = "bold" | "italic" | "heading" | "list" | "quote" | "link";
 type LibraryView = "tree" | "all";
 
 type WorkspaceTab = {
   content: string;
+  editorMode: EditorMode;
   isLoading: boolean;
   item: VaultEntry;
   savedContent: string;
@@ -80,6 +84,7 @@ type StoredWorkspace = {
   focusedPane?: unknown;
   openPaths?: unknown;
   panes?: unknown;
+  splitRatio?: unknown;
 };
 
 type StoredLibrary = {
@@ -111,20 +116,74 @@ type DocumentHeading = {
   text: string;
 };
 
+type StoredPanelSize = {
+  horizontal?: unknown;
+  side?: unknown;
+};
+
+type PanelResizeSession = {
+  pointerId: number;
+  startCoordinate: number;
+  startSize: number;
+};
+
+type PaneResizeSession = {
+  pointerId: number;
+};
+
+type TabDragSession = {
+  path: string;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  started: boolean;
+};
+
 const MAX_OPEN_TABS = 8;
-const MAX_VISIBLE_PANES = 4;
+const PANEL_VISIBILITY_TRANSITION_MS = 180;
 const WORKSPACE_STORAGE_KEY = "archeion-workspace-v1";
 const PANEL_MODE_STORAGE_KEY = "archeion-panel-mode-v2";
+const PANEL_SIZE_STORAGE_KEY = "archeion-panel-size-v1";
 const LEGACY_PANEL_COMPACT_STORAGE_KEY = "archeion-panel-compact";
 const LIBRARY_STORAGE_KEY = "archeion-library-v1";
-const paneSlots: PaneSlot[] = ["center", "left", "right", "top", "bottom"];
+const PANEL_SIDE_DEFAULT_SIZE = 288;
+const PANEL_SIDE_MIN_SIZE = 248;
+const PANEL_SIDE_MAX_SIZE = 480;
+const PANEL_HORIZONTAL_DEFAULT_SIZE = 288;
+const PANEL_HORIZONTAL_MIN_SIZE = 216;
+const PANEL_HORIZONTAL_MAX_SIZE = 480;
+const PANEL_RESIZE_STEP = 16;
+const PANE_MIN_SIZE = 248;
+const PANE_RESIZE_STEP = 0.04;
+const SCROLLBAR_HIDE_DELAY_MS = 700;
+const SCROLLBAR_FADE_MS = 180;
+type ScrollbarTimers = { fade?: number; hide?: number };
+const scrollbarTimers = new WeakMap<HTMLElement, ScrollbarTimers>();
+const paneSlots: PaneSlot[] = ["topLeft", "topRight", "bottomLeft", "bottomRight"];
 const emptyPaneTabs: PaneTabs = {
-  bottom: null,
-  center: null,
-  left: null,
-  right: null,
-  top: null,
+  bottomLeft: null,
+  bottomRight: null,
+  topLeft: null,
+  topRight: null,
 };
+
+function revealScrollbar(element: HTMLElement) {
+  const timers = scrollbarTimers.get(element) ?? {};
+  if (timers.hide !== undefined) window.clearTimeout(timers.hide);
+  if (timers.fade !== undefined) window.clearTimeout(timers.fade);
+
+  element.dataset.scrolling = "true";
+  delete element.dataset.scrollbarLeaving;
+  timers.hide = window.setTimeout(() => {
+    delete element.dataset.scrolling;
+    element.dataset.scrollbarLeaving = "true";
+    timers.fade = window.setTimeout(() => {
+      delete element.dataset.scrollbarLeaving;
+      scrollbarTimers.delete(element);
+    }, SCROLLBAR_FADE_MS);
+  }, SCROLLBAR_HIDE_DELAY_MS);
+  scrollbarTimers.set(element, timers);
+}
 
 const themeOptions = [
   { value: "light", label: "Светлая тема", Icon: SunIcon },
@@ -143,24 +202,25 @@ const dockOptions: Array<{
   { value: "bottom", label: "Переместить панель вниз", Icon: DockBottomIcon },
 ];
 
-const splitOptions: Array<{
-  value: PanelPosition;
-  label: string;
-  shortLabel: string;
-  Icon: React.ComponentType<AppIconProps>;
-}> = [
-  { value: "left", label: "Разместить активную вкладку слева", shortLabel: "Слева", Icon: DockLeftIcon },
-  { value: "right", label: "Разместить активную вкладку справа", shortLabel: "Справа", Icon: DockRightIcon },
-  { value: "top", label: "Разместить активную вкладку сверху", shortLabel: "Сверху", Icon: DockTopIcon },
-  { value: "bottom", label: "Разместить активную вкладку снизу", shortLabel: "Снизу", Icon: DockBottomIcon },
-];
-
 const paneLabels: Record<PaneSlot, string> = {
-  bottom: "Снизу",
-  center: "Основная",
-  left: "Слева",
-  right: "Справа",
-  top: "Сверху",
+  bottomLeft: "Снизу слева",
+  bottomRight: "Снизу справа",
+  topLeft: "Сверху слева",
+  topRight: "Сверху справа",
+};
+
+const dockTargetLabels: Record<DockTarget, string> = {
+  bottom: "снизу",
+  left: "слева",
+  right: "справа",
+  top: "сверху",
+};
+
+const dockTargetSlots: Record<DockTarget, readonly [PaneSlot, PaneSlot]> = {
+  bottom: ["bottomLeft", "bottomRight"],
+  left: ["topLeft", "bottomLeft"],
+  right: ["topRight", "bottomRight"],
+  top: ["topLeft", "topRight"],
 };
 
 const formatOptions: Array<{
@@ -261,8 +321,21 @@ function visiblePaneCount(panes: PaneTabs) {
   return paneSlots.reduce((count, slot) => count + (panes[slot] ? 1 : 0), 0);
 }
 
+function dockTargetFromPoint(rect: DOMRect, clientX: number, clientY: number): DockTarget {
+  const distances: Record<DockTarget, number> = {
+    bottom: rect.bottom - clientY,
+    left: clientX - rect.left,
+    right: rect.right - clientX,
+    top: clientY - rect.top,
+  };
+
+  return (Object.entries(distances) as Array<[DockTarget, number]>).reduce(
+    (nearest, candidate) => candidate[1] < nearest[1] ? candidate : nearest,
+  )[0];
+}
+
 function isPaneSlot(value: unknown): value is PaneSlot {
-  return value === "center" || value === "left" || value === "right" || value === "top" || value === "bottom";
+  return value === "topLeft" || value === "topRight" || value === "bottomLeft" || value === "bottomRight";
 }
 
 function sanitiseStoredWorkspace(value: string | null, items: VaultEntry[]) {
@@ -283,44 +356,61 @@ function sanitiseStoredWorkspace(value: string | null, items: VaultEntry[]) {
     if (firstNote) openPaths.push(firstNote.path);
   }
 
-  const panes: PaneTabs = { ...emptyPaneTabs };
-  const storedPanes = stored.panes && typeof stored.panes === "object"
-    ? stored.panes as Partial<Record<PaneSlot, unknown>>
-    : {};
-  const placedPaths = new Set<string>();
-
-  for (const slot of paneSlots) {
-    const path = storedPanes[slot];
-    if (typeof path !== "string" || !openPaths.includes(path) || placedPaths.has(path)) continue;
-    if (visiblePaneCount(panes) >= MAX_VISIBLE_PANES) break;
-    panes[slot] = path;
-    placedPaths.add(path);
-  }
-
   const storedActivePath = typeof stored.activePath === "string" && openPaths.includes(stored.activePath)
     ? stored.activePath
     : openPaths[0] ?? null;
   const activePath = storedActivePath;
+  const storedPanes = stored.panes && typeof stored.panes === "object"
+    ? stored.panes as Record<string, unknown>
+    : {};
+  const panes: PaneTabs = { ...emptyPaneTabs };
+  const claimedPaths = new Set<string>();
+  const claimPane = (slot: PaneSlot, candidate: unknown) => {
+    if (typeof candidate !== "string" || !openPaths.includes(candidate) || claimedPaths.has(candidate)) return;
+    panes[slot] = candidate;
+    claimedPaths.add(candidate);
+  };
 
-  if (!panes.center && activePath && !placedPaths.has(activePath)) {
-    panes.center = activePath;
-    placedPaths.add(activePath);
-  }
-  if (!panes.center && openPaths[0]) {
-    const existingSlot = paneForPath(panes, openPaths[0]);
-    if (existingSlot) panes[existingSlot] = null;
-    panes.center = openPaths[0];
+  // Current four-cell layouts are restored verbatim. The legacy three-position
+  // layout is migrated into the nearest equivalent cell arrangement.
+  for (const slot of paneSlots) claimPane(slot, storedPanes[slot]);
+  if (visiblePaneCount(panes) === 0) {
+    const center = typeof storedPanes.center === "string" && openPaths.includes(storedPanes.center)
+      ? storedPanes.center
+      : activePath;
+    const left = storedPanes.left;
+    const right = storedPanes.right;
+    const top = storedPanes.top;
+    const bottom = storedPanes.bottom;
+
+    if (typeof center === "string") claimPane("topLeft", center);
+    claimPane("topLeft", left);
+    claimPane("topRight", right);
+    claimPane("bottomLeft", bottom);
+    claimPane("topLeft", top);
   }
 
   if (activePath && !paneForPath(panes, activePath)) {
-    panes.center = activePath;
+    const destination = paneSlots.find((slot) => !panes[slot]) ?? "topLeft";
+    panes[destination] = activePath;
   }
-
+  const legacyFocusedSlot: PaneSlot | null = stored.focusedPane === "right"
+    ? "topRight"
+    : stored.focusedPane === "bottom"
+      ? "bottomLeft"
+      : stored.focusedPane === "top" || stored.focusedPane === "left" || stored.focusedPane === "center"
+        ? "topLeft"
+        : null;
   const focusedPane = isPaneSlot(stored.focusedPane) && panes[stored.focusedPane]
     ? stored.focusedPane
-    : paneForPath(panes, activePath ?? "") ?? "center";
+    : legacyFocusedSlot && panes[legacyFocusedSlot]
+      ? legacyFocusedSlot
+      : paneForPath(panes, activePath ?? "") ?? "topLeft";
+  const splitRatio = typeof stored.splitRatio === "number" && Number.isFinite(stored.splitRatio)
+    ? Math.min(0.8, Math.max(0.2, stored.splitRatio))
+    : 0.5;
 
-  return { activePath, focusedPane, openPaths, panes };
+  return { activePath, focusedPane, openPaths, panes, splitRatio };
 }
 
 function extractMarkdownHeadings(content: string, idPrefix = "outline-heading"): DocumentHeading[] {
@@ -474,41 +564,44 @@ function PanelSettings({
   onThemeChange: (theme: ThemePreference) => void;
   onHide: () => void;
 }) {
+  const itemClassName = "h-9 cursor-pointer rounded-md px-2.5 text-[13px] font-medium tracking-[-0.01em] transition-colors duration-150 hover:bg-accent/70 focus:bg-accent focus:text-accent-foreground active:bg-accent/80";
+  const labelClassName = "px-2.5 pb-1 pt-1.5 text-[11px] font-semibold tracking-[0.01em] text-muted-foreground";
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           aria-label="Настройки панели Vault"
-          className="grid size-8 place-items-center rounded-md text-sm font-semibold tracking-[0.08em] text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70"
+          className="grid size-8 place-items-center rounded-md text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent/70 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70"
           title="Расположение и тема"
           type="button"
         >
-          <span aria-hidden="true">•••</span>
+          <span aria-hidden="true" className="text-[10px] font-bold leading-none tracking-[0.1em]">•••</span>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56 rounded-lg shadow-md">
-        <DropdownMenuLabel>Расположение</DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="vault-panel-settings-menu w-[13rem] rounded-xl p-1.5 shadow-sm" sideOffset={8}>
+        <DropdownMenuLabel className={labelClassName}>Расположение</DropdownMenuLabel>
         {dockOptions.map(({ value, label, Icon }) => (
-          <DropdownMenuItem key={value} onSelect={() => onPositionChange(value)}>
-            <Icon className="size-4" motion="none" />
+          <DropdownMenuItem className={cn(itemClassName, position === value && "bg-primary/10 text-foreground hover:bg-primary/15 focus:bg-primary/15")} key={value} onSelect={() => onPositionChange(value)}>
+            <Icon className="size-3.5" />
             <span className="min-w-0 flex-1 truncate">{label.replace("Переместить панель ", "")}</span>
-            {position === value ? <CheckIcon className="size-4 text-primary" motion="none" /> : null}
+            {position === value ? <CheckIcon className="size-3.5 text-primary" motion="none" /> : null}
           </DropdownMenuItem>
         ))}
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel>Тема</DropdownMenuLabel>
+        <DropdownMenuSeparator className="my-1.5" />
+        <DropdownMenuLabel className={labelClassName}>Тема</DropdownMenuLabel>
         {themeOptions.map(({ value, label, Icon }) => (
-          <DropdownMenuItem key={value} onSelect={() => onThemeChange(value)}>
-            <Icon className="size-4" motion="none" />
+          <DropdownMenuItem className={cn(itemClassName, theme === value && "bg-primary/10 text-foreground hover:bg-primary/15 focus:bg-primary/15")} key={value} onSelect={() => onThemeChange(value)}>
+            <Icon className="size-3.5" />
             <span className="min-w-0 flex-1">{label}</span>
-            {theme === value ? <CheckIcon className="size-4 text-primary" motion="none" /> : null}
+            {theme === value ? <CheckIcon className="size-3.5 text-primary" motion="none" /> : null}
           </DropdownMenuItem>
         ))}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={onHide}>
-          <CloseIcon className="size-4" motion="none" />
-          Скрыть Vault
-          <span className="ml-auto text-[10px] text-muted-foreground">⌘/Ctrl B</span>
+        <DropdownMenuSeparator className="my-1.5" />
+        <DropdownMenuItem className={cn(itemClassName, "mt-0.5 text-muted-foreground hover:text-foreground focus:text-foreground")} onSelect={onHide}>
+          <CloseIcon className="size-3.5" />
+          <span className="flex-1">Скрыть Vault</span>
+          <span className="text-[10px] font-normal text-muted-foreground">⌘/Ctrl B</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -655,6 +748,15 @@ function VaultWorkspace() {
   const canvasScrollRef = React.useRef<HTMLDivElement>(null);
   const openRequestsRef = React.useRef<Record<string, number>>({});
   const hoverPreviewTimerRef = React.useRef<number | null>(null);
+  const panelTransitionTimerRef = React.useRef<number | null>(null);
+  const panelRef = React.useRef<HTMLElement>(null);
+  const panelResizeSessionRef = React.useRef<PanelResizeSession | null>(null);
+  const panelResizeCleanupRef = React.useRef<() => void>(() => undefined);
+  const workspacePaneContainerRef = React.useRef<HTMLDivElement>(null);
+  const paneResizeSessionRef = React.useRef<PaneResizeSession | null>(null);
+  const paneResizeCleanupRef = React.useRef<() => void>(() => undefined);
+  const tabDragSessionRef = React.useRef<TabDragSession | null>(null);
+  const tabDragCleanupRef = React.useRef<() => void>(() => undefined);
   const hoverPreviewCacheRef = React.useRef<Record<string, string | null>>({});
   const hoverPreviewRequestsRef = React.useRef(new Set<string>());
   const libraryPreferencesReadyRef = React.useRef(false);
@@ -664,17 +766,24 @@ function VaultWorkspace() {
   const [items, setItems] = React.useState<VaultEntry[]>([]);
   const [folders, setFolders] = React.useState<VaultFolderEntry[]>([]);
   const [tabs, setTabs] = React.useState<WorkspaceTab[]>([]);
+  const [draggedTabPath, setDraggedTabPath] = React.useState<string | null>(null);
+  const [dockTarget, setDockTarget] = React.useState<DockTarget | null>(null);
   const [activePath, setActivePath] = React.useState<string | null>(null);
   const [paneTabs, setPaneTabs] = React.useState<PaneTabs>(emptyPaneTabs);
-  const [focusedPane, setFocusedPane] = React.useState<PaneSlot>("center");
+  const [focusedPane, setFocusedPane] = React.useState<PaneSlot>("topLeft");
+  const [paneSplitRatio, setPaneSplitRatio] = React.useState(0.5);
+  const [isPaneResizing, setIsPaneResizing] = React.useState(false);
   const [libraryView, setLibraryView] = React.useState<LibraryView>("tree");
   const [expandedFolders, setExpandedFolders] = React.useState<string[]>([]);
   const [libraryOrder, setLibraryOrder] = React.useState<string[]>([]);
   const [graphFolder, setGraphFolder] = React.useState("all");
-  const [editorMode, setEditorMode] = React.useState<EditorMode>("edit");
   const [workspaceView, setWorkspaceView] = React.useState<WorkspaceView>("document");
   const [panelPosition, setPanelPosition] = React.useState<PanelPosition>("right");
   const [panelPresentation, setPanelPresentation] = React.useState<VaultLibraryPresentation>("expanded");
+  const [sidePanelSize, setSidePanelSize] = React.useState(PANEL_SIDE_DEFAULT_SIZE);
+  const [horizontalPanelSize, setHorizontalPanelSize] = React.useState(PANEL_HORIZONTAL_DEFAULT_SIZE);
+  const [isPanelResizing, setIsPanelResizing] = React.useState(false);
+  const [isPanelClosing, setIsPanelClosing] = React.useState(false);
   const [theme, setTheme] = React.useState<ThemePreference>("system");
   const [isLoading, setIsLoading] = React.useState(true);
   const [isWorkspaceReady, setIsWorkspaceReady] = React.useState(false);
@@ -691,6 +800,7 @@ function VaultWorkspace() {
   const selected = selectedTab?.item ?? null;
   const content = selectedTab?.content ?? "";
   const savedContent = selectedTab?.savedContent ?? "";
+  const editorMode = selectedTab?.editorMode ?? "edit";
   const isSaving = activePath ? savingPaths.includes(activePath) : false;
   const activeFolder = graphFolder;
 
@@ -700,8 +810,117 @@ function VaultWorkspace() {
     )));
   }
 
+  function setEditorMode(nextMode: React.SetStateAction<EditorMode>) {
+    updateActiveTab((tab) => ({
+      ...tab,
+      editorMode: typeof nextMode === "function" ? nextMode(tab.editorMode) : nextMode,
+    }));
+  }
+
   function setContent(value: string) {
     updateActiveTab((tab) => ({ ...tab, content: value }));
+  }
+
+  function moveTab(draggedPath: string, targetPath: string) {
+    if (draggedPath === targetPath) return;
+
+    setTabs((current) => {
+      const sourceIndex = current.findIndex((tab) => tab.item.path === draggedPath);
+      const targetIndex = current.findIndex((tab) => tab.item.path === targetPath);
+      if (sourceIndex < 0 || targetIndex < 0) return current;
+
+      const reordered = [...current];
+      const [draggedTab] = reordered.splice(sourceIndex, 1);
+      reordered.splice(targetIndex, 0, draggedTab);
+      return reordered;
+    });
+  }
+
+  function beginTabDrag(event: React.PointerEvent<HTMLButtonElement>, path: string) {
+    if (event.button !== 0) return;
+    tabDragCleanupRef.current();
+    tabDragSessionRef.current = {
+      path,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      started: false,
+    };
+
+    function moveDraggedTab(pointerEvent: PointerEvent) {
+      const session = tabDragSessionRef.current;
+      if (!session || session.pointerId !== pointerEvent.pointerId) return;
+      const distance = Math.hypot(pointerEvent.clientX - session.startX, pointerEvent.clientY - session.startY);
+      if (!session.started && distance < 6) return;
+
+      if (!session.started) {
+        session.started = true;
+        setDraggedTabPath(session.path);
+      }
+
+      const workspaceRect = workspacePaneContainerRef.current?.getBoundingClientRect();
+      const isOverWorkspace = workspaceRect
+        && pointerEvent.clientX >= workspaceRect.left
+        && pointerEvent.clientX <= workspaceRect.right
+        && pointerEvent.clientY >= workspaceRect.top
+        && pointerEvent.clientY <= workspaceRect.bottom;
+      if (isOverWorkspace) {
+        setDockTarget(dockTargetFromPoint(workspaceRect, pointerEvent.clientX, pointerEvent.clientY));
+      } else {
+        setDockTarget(null);
+      }
+      pointerEvent.preventDefault();
+    }
+
+    function finishDraggedTab(pointerEvent: PointerEvent) {
+      const session = tabDragSessionRef.current;
+      if (!session || session.pointerId !== pointerEvent.pointerId) return;
+      const wasDragging = session.started;
+      const draggedPath = session.path;
+      tabDragSessionRef.current = null;
+      tabDragCleanupRef.current();
+      if (!wasDragging) return;
+
+      const workspaceRect = workspacePaneContainerRef.current?.getBoundingClientRect();
+      const isOverWorkspace = workspaceRect
+        && pointerEvent.clientX >= workspaceRect.left
+        && pointerEvent.clientX <= workspaceRect.right
+        && pointerEvent.clientY >= workspaceRect.top
+        && pointerEvent.clientY <= workspaceRect.bottom;
+
+      if (isOverWorkspace && tabs.length >= 2) {
+        const target = dockTargetFromPoint(workspaceRect, pointerEvent.clientX, pointerEvent.clientY);
+        dockTab(draggedPath, target);
+      } else {
+        const targetElement = document.elementFromPoint(pointerEvent.clientX, pointerEvent.clientY);
+        const targetPath = targetElement instanceof HTMLElement
+          ? targetElement.closest<HTMLElement>("[data-workspace-tab-path]")?.dataset.workspaceTabPath
+          : undefined;
+        if (targetPath) moveTab(draggedPath, targetPath);
+        setDockTarget(null);
+        setDraggedTabPath(null);
+      }
+      pointerEvent.preventDefault();
+    }
+
+    function cancelDraggedTab(pointerEvent: PointerEvent) {
+      const session = tabDragSessionRef.current;
+      if (!session || session.pointerId !== pointerEvent.pointerId) return;
+      tabDragSessionRef.current = null;
+      setDockTarget(null);
+      setDraggedTabPath(null);
+      tabDragCleanupRef.current();
+    }
+
+    const cleanup = () => {
+      window.removeEventListener("pointermove", moveDraggedTab);
+      window.removeEventListener("pointerup", finishDraggedTab);
+      window.removeEventListener("pointercancel", cancelDraggedTab);
+    };
+    tabDragCleanupRef.current = cleanup;
+    window.addEventListener("pointermove", moveDraggedTab, { passive: false });
+    window.addEventListener("pointerup", finishDraggedTab, { passive: false });
+    window.addEventListener("pointercancel", cancelDraggedTab);
   }
 
   React.useEffect(() => {
@@ -719,10 +938,23 @@ function VaultWorkspace() {
     if (hoverPreviewTimerRef.current !== null) window.clearTimeout(hoverPreviewTimerRef.current);
   }, []);
 
+  React.useEffect(() => () => {
+    if (panelTransitionTimerRef.current !== null) window.clearTimeout(panelTransitionTimerRef.current);
+    panelResizeCleanupRef.current();
+    paneResizeCleanupRef.current();
+    tabDragCleanupRef.current();
+  }, []);
+
   React.useEffect(() => {
     const storedPosition = window.localStorage.getItem("archeion-panel-position");
     const storedPresentation = window.localStorage.getItem(PANEL_MODE_STORAGE_KEY);
     const storedCompact = window.localStorage.getItem(LEGACY_PANEL_COMPACT_STORAGE_KEY);
+    let storedSize: StoredPanelSize = {};
+    try {
+      storedSize = JSON.parse(window.localStorage.getItem(PANEL_SIZE_STORAGE_KEY) ?? "{}") as StoredPanelSize;
+    } catch {
+      storedSize = {};
+    }
     const frame = window.requestAnimationFrame(() => {
       if (storedPosition === "left" || storedPosition === "right" || storedPosition === "top" || storedPosition === "bottom") {
         setPanelPosition(storedPosition);
@@ -731,6 +963,12 @@ function VaultWorkspace() {
         setPanelPresentation(storedPresentation);
       } else if (storedCompact === "true") {
         setPanelPresentation("compact");
+      }
+      if (typeof storedSize.side === "number" && Number.isFinite(storedSize.side)) {
+        setSidePanelSize(Math.min(PANEL_SIDE_MAX_SIZE, Math.max(PANEL_SIDE_MIN_SIZE, storedSize.side)));
+      }
+      if (typeof storedSize.horizontal === "number" && Number.isFinite(storedSize.horizontal)) {
+        setHorizontalPanelSize(Math.min(PANEL_HORIZONTAL_MAX_SIZE, Math.max(PANEL_HORIZONTAL_MIN_SIZE, storedSize.horizontal)));
       }
       panelPreferencesReadyRef.current = true;
     });
@@ -773,7 +1011,11 @@ function VaultWorkspace() {
     if (!panelPreferencesReadyRef.current) return;
     window.localStorage.setItem("archeion-panel-position", panelPosition);
     window.localStorage.setItem(PANEL_MODE_STORAGE_KEY, panelPresentation);
-  }, [panelPosition, panelPresentation]);
+    window.localStorage.setItem(PANEL_SIZE_STORAGE_KEY, JSON.stringify({
+      horizontal: horizontalPanelSize,
+      side: sidePanelSize,
+    } satisfies StoredPanelSize));
+  }, [horizontalPanelSize, panelPosition, panelPresentation, sidePanelSize]);
 
   React.useEffect(() => {
     if (!libraryPreferencesReadyRef.current) return;
@@ -790,10 +1032,6 @@ function VaultWorkspace() {
       if (event.target !== textareaRef.current) return;
 
       event.preventDefault();
-      if (visiblePaneCount(paneTabs) > 1) {
-        setMessage("Быстрый просмотр доступен, когда на экране одна файловая панель.");
-        return;
-      }
       setFormattingHint(null);
       setEditorMode((mode) => (mode === "split" ? "edit" : "split"));
     }
@@ -806,27 +1044,51 @@ function VaultWorkspace() {
     if (panelPresentation !== "hidden") lastVisiblePanelRef.current = panelPresentation;
   }, [panelPresentation]);
 
+  const changePanelPresentation = React.useCallback((nextPresentation: VaultLibraryPresentation) => {
+    if (nextPresentation === panelPresentation || isPanelClosing) return;
+    if (panelTransitionTimerRef.current !== null) window.clearTimeout(panelTransitionTimerRef.current);
+
+    if (nextPresentation === "hidden" && !prefersReducedMotion) {
+      setIsPanelClosing(true);
+      panelTransitionTimerRef.current = window.setTimeout(() => {
+        setPanelPresentation("hidden");
+        setIsPanelClosing(false);
+        panelTransitionTimerRef.current = null;
+      }, PANEL_VISIBILITY_TRANSITION_MS);
+      return;
+    }
+
+    setPanelPresentation(nextPresentation);
+  }, [isPanelClosing, panelPresentation, prefersReducedMotion]);
+
   React.useEffect(() => {
     function toggleVaultPanel(event: KeyboardEvent) {
       if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "b") return;
       event.preventDefault();
-      setPanelPresentation((current) => current === "hidden" ? lastVisiblePanelRef.current : "hidden");
+      changePanelPresentation(panelPresentation === "hidden" ? lastVisiblePanelRef.current : "hidden");
     }
 
     window.addEventListener("keydown", toggleVaultPanel);
     return () => window.removeEventListener("keydown", toggleVaultPanel);
-  }, []);
+  }, [changePanelPresentation, panelPresentation]);
+
+  function focusPane(slot: PaneSlot, path: string) {
+    setFocusedPane(slot);
+    setActivePath(path);
+    setWorkspaceView("document");
+    setFormattingHint(null);
+  }
 
   function focusPath(path: string) {
     const existingPane = paneForPath(paneTabs, path);
     if (existingPane) {
-      setFocusedPane(existingPane);
-    } else {
-      setPaneTabs((current) => ({ ...current, [focusedPane]: path }));
+      focusPane(existingPane, path);
+      return;
     }
-    setActivePath(path);
-    setWorkspaceView("document");
-    setFormattingHint(null);
+
+    const destination = paneTabs[focusedPane] ? focusedPane : "topLeft";
+    setPaneTabs((current) => ({ ...current, [destination]: path }));
+    focusPane(destination, path);
   }
 
   function revealFolder(folder: string) {
@@ -852,13 +1114,16 @@ function VaultWorkspace() {
     openRequestsRef.current[item.path] = requestId;
     const nextTab: WorkspaceTab = {
       content: "",
+      editorMode: "edit",
       isLoading: item.kind === "note",
       item,
       savedContent: "",
     };
 
+    const destination = paneTabs[focusedPane] ? focusedPane : "topLeft";
     setTabs((current) => [...current, nextTab]);
-    setPaneTabs((current) => ({ ...current, [focusedPane]: item.path }));
+    setPaneTabs((current) => ({ ...current, [destination]: item.path }));
+    setFocusedPane(destination);
     setActivePath(item.path);
     setMessage(null);
     setWorkspaceView("document");
@@ -877,7 +1142,6 @@ function VaultWorkspace() {
       setTabs((current) => current.map((tab) => tab.item.path === item.path
         ? { ...tab, content: body.content, isLoading: false, savedContent: body.content }
         : tab));
-      setEditorMode("edit");
     } catch (error) {
       if (openRequestsRef.current[item.path] !== requestId) return;
       const fallbackPath = tabs.at(-1)?.item.path ?? null;
@@ -887,13 +1151,14 @@ function VaultWorkspace() {
           ...next,
           [slot]: current[slot] === item.path ? null : current[slot],
         }), { ...emptyPaneTabs });
-        if (!nextPanes.center && fallbackPath) {
+        if (!paneForPath(nextPanes, fallbackPath ?? "") && fallbackPath) {
           const fallbackPane = paneForPath(nextPanes, fallbackPath);
           if (fallbackPane) nextPanes[fallbackPane] = null;
-          nextPanes.center = fallbackPath;
+          nextPanes[paneSlots.find((slot) => !nextPanes[slot]) ?? "topLeft"] = fallbackPath;
         }
         return nextPanes;
       });
+      setFocusedPane("topLeft");
       setActivePath((current) => current === item.path ? fallbackPath : current);
       setMessage(error instanceof Error ? error.message : "Не удалось открыть заметку");
     }
@@ -974,7 +1239,7 @@ function VaultWorkspace() {
         const itemsByPath = new Map(nextItems.map((item) => [item.path, item]));
         const tabsToRestore = restored.openPaths.flatMap((path) => {
           const item = itemsByPath.get(path);
-          return item ? [{ content: "", isLoading: item.kind === "note", item, savedContent: "" }] : [];
+          return item ? [{ content: "", editorMode: "edit", isLoading: item.kind === "note", item, savedContent: "" }] : [];
         });
 
         const restoredTabs = (await Promise.all(tabsToRestore.map(async (tab) => {
@@ -997,14 +1262,14 @@ function VaultWorkspace() {
         for (const slot of paneSlots) {
           if (restoredPanes[slot] && !restoredPaths.has(restoredPanes[slot])) restoredPanes[slot] = null;
         }
-        if (!restoredPanes.center && restoredActivePath) {
+        if (!paneForPath(restoredPanes, restoredActivePath ?? "") && restoredActivePath) {
           const previousPane = paneForPath(restoredPanes, restoredActivePath);
           if (previousPane) restoredPanes[previousPane] = null;
-          restoredPanes.center = restoredActivePath;
+          restoredPanes.topLeft = restoredActivePath;
         }
         const restoredFocusedPane = restoredPanes[restored.focusedPane]
           ? restored.focusedPane
-          : paneForPath(restoredPanes, restoredActivePath ?? "") ?? "center";
+          : paneForPath(restoredPanes, restoredActivePath ?? "") ?? "topLeft";
 
         setItems(nextItems);
         setFolders(snapshot.folders);
@@ -1012,6 +1277,7 @@ function VaultWorkspace() {
         setActivePath(restoredActivePath);
         setPaneTabs(restoredPanes);
         setFocusedPane(restoredFocusedPane);
+        setPaneSplitRatio(restored.splitRatio);
       } catch (error) {
         if (active) {
           setMessage(error instanceof Error ? error.message : "Не удалось открыть Vault");
@@ -1037,10 +1303,11 @@ function VaultWorkspace() {
         focusedPane,
         openPaths: tabs.map((tab) => tab.item.path),
         panes: paneTabs,
+        splitRatio: paneSplitRatio,
       } satisfies StoredWorkspace));
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [activePath, focusedPane, isWorkspaceReady, paneTabs, tabs]);
+  }, [activePath, focusedPane, isWorkspaceReady, paneSplitRatio, paneTabs, tabs]);
 
   async function createLibraryNote({ directory, name }: VaultLibraryCreateInput) {
     setIsCreating(true);
@@ -1261,16 +1528,16 @@ function VaultWorkspace() {
       [slot]: paneTabs[slot] && !isRemoved(paneTabs[slot]) ? paneTabs[slot] : null,
     }), { ...emptyPaneTabs });
 
-    if (!nextPanes.center && nextActivePath) {
+    if (!paneForPath(nextPanes, nextActivePath ?? "") && nextActivePath) {
       const occupied = paneForPath(nextPanes, nextActivePath);
       if (occupied) nextPanes[occupied] = null;
-      nextPanes.center = nextActivePath;
+      nextPanes[paneSlots.find((slot) => !nextPanes[slot]) ?? "topLeft"] = nextActivePath;
     }
 
     setTabs(remainingTabs);
     setPaneTabs(nextPanes);
     setActivePath(nextActivePath);
-    setFocusedPane(paneForPath(nextPanes, nextActivePath ?? "") ?? "center");
+    setFocusedPane(paneForPath(nextPanes, nextActivePath ?? "") ?? "topLeft");
     setExpandedFolders((current) => current.filter((folder) => !isRemoved(folder)));
     setLibraryOrder((current) => current.filter((path) => !isRemoved(path)));
     setSavingPaths((current) => current.filter((path) => !isRemoved(path)));
@@ -1383,10 +1650,10 @@ function VaultWorkspace() {
       [slot]: paneTabs[slot] === path ? null : paneTabs[slot],
     }), { ...emptyPaneTabs });
 
-    if (!nextPanes.center && nextActiveTab) {
+    if (!paneForPath(nextPanes, nextActiveTab?.item.path ?? "") && nextActiveTab) {
       const nextActivePane = paneForPath(nextPanes, nextActiveTab.item.path);
       if (nextActivePane) nextPanes[nextActivePane] = null;
-      nextPanes.center = nextActiveTab.item.path;
+      nextPanes[paneSlots.find((slot) => !nextPanes[slot]) ?? "topLeft"] = nextActiveTab.item.path;
     }
 
     setTabs(remainingTabs);
@@ -1394,63 +1661,82 @@ function VaultWorkspace() {
     if (activePath === path) {
       const nextPath = nextActiveTab?.item.path ?? null;
       setActivePath(nextPath);
-      setFocusedPane(paneForPath(nextPanes, nextPath ?? "") ?? "center");
+      setFocusedPane(paneForPath(nextPanes, nextPath ?? "") ?? "topLeft");
     }
     delete openRequestsRef.current[path];
     setFormattingHint(null);
   }
 
-  function placeActiveTab(target: PanelPosition) {
-    if (!activePath || tabs.length < 2) {
-      setMessage("Откройте хотя бы две вкладки, чтобы разделить экран.");
-      return;
-    }
-
-    const source = paneForPath(paneTabs, activePath);
-    if (source === target) return;
-    const targetPath = paneTabs[target];
-    const addsPane = !targetPath && (source === "center" || !source);
-    if (addsPane && visiblePaneCount(paneTabs) >= MAX_VISIBLE_PANES) {
-      setMessage(`Одновременно можно показать не больше ${MAX_VISIBLE_PANES} панелей.`);
-      return;
-    }
-
-    const nextPanes = { ...paneTabs };
-    if (source) nextPanes[source] = targetPath;
-    nextPanes[target] = activePath;
-
-    if (!nextPanes.center) {
-      const replacementPath = targetPath && targetPath !== activePath
-        ? targetPath
-        : tabs.find((tab) => tab.item.path !== activePath && !paneForPath(nextPanes, tab.item.path))?.item.path;
-      if (!replacementPath) {
-        setMessage("Для разделения экрана нужна ещё одна открытая вкладка.");
-        return;
-      }
-      const replacementPane = paneForPath(nextPanes, replacementPath);
-      if (replacementPane) nextPanes[replacementPane] = null;
-      nextPanes.center = replacementPath;
-    }
-
-    setPaneTabs(nextPanes);
-    setFocusedPane(target);
-    const activeTab = tabs.find((tab) => tab.item.path === activePath);
-    const activeTitle = activeTab
-      ? activeTab.item.kind === "note" ? noteTitle(activeTab.item) : activeTab.item.name
-      : activePath;
-    setMessage(`${activeTitle} · ${paneLabels[target].toLowerCase()}`);
-  }
-
-  function collapsePane(slot: PanelPosition) {
+  function collapsePane(slot: PaneSlot) {
     const path = paneTabs[slot];
     if (!path) return;
     const nextPanes = { ...paneTabs, [slot]: null };
     setPaneTabs(nextPanes);
     if (activePath === path) {
-      const centerPath = nextPanes.center;
-      setActivePath(centerPath);
-      setFocusedPane("center");
+      const nextSlot = paneSlots.find((candidate) => nextPanes[candidate]);
+      setActivePath(nextSlot ? nextPanes[nextSlot] : null);
+      setFocusedPane(nextSlot ?? "topLeft");
     }
+  }
+
+  function dockTab(path: string, target: DockTarget) {
+    if (tabs.length < 2) {
+      setMessage("Откройте хотя бы две вкладки, чтобы поставить файлы рядом.");
+      setDockTarget(null);
+      setDraggedTabPath(null);
+      return;
+    }
+
+    const source = paneForPath(paneTabs, path);
+    const [primarySlot, companionSlot] = dockTargetSlots[target];
+    let nextPanes: PaneTabs;
+
+    if (visiblePaneCount(paneTabs) <= 1) {
+      const companionPath = tabs.find((tab) => tab.item.path !== path)?.item.path ?? null;
+      if (!companionPath) {
+        setMessage("Для разделения экрана нужна ещё одна открытая вкладка.");
+        setDockTarget(null);
+        setDraggedTabPath(null);
+        return;
+      }
+      nextPanes = { ...emptyPaneTabs, [primarySlot]: path, [companionSlot]: companionPath };
+    } else {
+      nextPanes = { ...paneTabs };
+      let destination = [primarySlot, companionSlot].find((slot) => nextPanes[slot] === path)
+        ?? [primarySlot, companionSlot].find((slot) => !nextPanes[slot])
+        ?? paneSlots.find((slot) => !nextPanes[slot])
+        ?? null;
+
+      if (!destination && !source) {
+        setMessage("На экране уже четыре файла. Сверните одну область или переместите открытую вкладку.");
+        setDockTarget(null);
+        setDraggedTabPath(null);
+        return;
+      }
+
+      destination ??= primarySlot;
+      if (source && source !== destination) {
+        const displacedPath = nextPanes[destination];
+        nextPanes[destination] = path;
+        nextPanes[source] = displacedPath ?? null;
+      } else {
+        nextPanes[destination] = path;
+      }
+    }
+    const dockedTab = tabs.find((tab) => tab.item.path === path);
+    const dockedTitle = dockedTab
+      ? dockedTab.item.kind === "note" ? noteTitle(dockedTab.item) : dockedTab.item.name
+      : path;
+
+    setPaneTabs(nextPanes);
+    setPaneSplitRatio(0.5);
+    setFocusedPane(primarySlot);
+    setActivePath(path);
+    setWorkspaceView("document");
+    setFormattingHint(null);
+    setMessage(`${dockedTitle} открыт ${dockTargetLabels[target]}`);
+    setDockTarget(null);
+    setDraggedTabPath(null);
   }
 
   function activateTab(path: string) {
@@ -1565,22 +1851,195 @@ function VaultWorkspace() {
   const isHorizontalDock = panelPosition === "top" || panelPosition === "bottom";
   const hoverPreviewContent = hoverPreview ? hoverPreviewContentByPath[hoverPreview.item.path] : undefined;
   const visiblePanes = visiblePaneCount(paneTabs);
+  const visiblePaneSlots = paneSlots.filter((slot) => paneTabs[slot]);
+  const splitAxis: PaneSplitAxis | null = visiblePanes === 2
+    ? (visiblePaneSlots.every((slot) => slot === "topLeft" || slot === "topRight")
+      || visiblePaneSlots.every((slot) => slot === "bottomLeft" || slot === "bottomRight")
+      ? "horizontal"
+      : visiblePaneSlots.every((slot) => slot === "topLeft" || slot === "bottomLeft")
+        || visiblePaneSlots.every((slot) => slot === "topRight" || slot === "bottomRight")
+        ? "vertical"
+        : null)
+    : null;
   const showDocumentOutline = visiblePanes === 1 && documentHeadings.length > 0 && editorMode !== "split";
   const graphRefreshKey = items
     .filter((item) => item.kind === "note")
     .map((item) => `${item.path}:${item.size}:${item.updatedAt}`)
     .join("|");
 
+  function panelSizeBounds(horizontal: boolean) {
+    const shellRect = panelRef.current?.parentElement?.getBoundingClientRect();
+    const minimum = horizontal ? PANEL_HORIZONTAL_MIN_SIZE : PANEL_SIDE_MIN_SIZE;
+    const hardMaximum = horizontal ? PANEL_HORIZONTAL_MAX_SIZE : PANEL_SIDE_MAX_SIZE;
+    const canvasMinimum = horizontal ? 280 : 320;
+    const available = horizontal
+      ? shellRect?.height ?? window.innerHeight
+      : shellRect?.width ?? window.innerWidth;
+
+    return {
+      maximum: Math.max(minimum, Math.min(hardMaximum, available - canvasMinimum)),
+      minimum,
+    };
+  }
+
+  function updatePanelSize(nextSize: number) {
+    const bounds = panelSizeBounds(isHorizontalDock);
+    const clampedSize = Math.round(Math.min(bounds.maximum, Math.max(bounds.minimum, nextSize)));
+    if (isHorizontalDock) setHorizontalPanelSize(clampedSize);
+    else setSidePanelSize(clampedSize);
+  }
+
+  function beginPanelResize(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.button !== 0 || panelPresentation !== "expanded") return;
+    const panelRect = panelRef.current?.getBoundingClientRect();
+    if (!panelRect) return;
+
+    panelResizeSessionRef.current = {
+      pointerId: event.pointerId,
+      startCoordinate: isHorizontalDock ? event.clientY : event.clientX,
+      startSize: isHorizontalDock ? panelRect.height : panelRect.width,
+    };
+    setIsPanelResizing(true);
+    event.currentTarget.focus();
+    panelResizeCleanupRef.current();
+
+    function movePanel(pointerEvent: PointerEvent) {
+      const session = panelResizeSessionRef.current;
+      if (!session || session.pointerId !== pointerEvent.pointerId) return;
+      const coordinate = isHorizontalDock ? pointerEvent.clientY : pointerEvent.clientX;
+      const direction = panelPosition === "left" || panelPosition === "top" ? 1 : -1;
+      updatePanelSize(session.startSize + (coordinate - session.startCoordinate) * direction);
+      pointerEvent.preventDefault();
+    }
+
+    function finishPanel(pointerEvent: PointerEvent) {
+      const session = panelResizeSessionRef.current;
+      if (!session || session.pointerId !== pointerEvent.pointerId) return;
+      panelResizeSessionRef.current = null;
+      setIsPanelResizing(false);
+      panelResizeCleanupRef.current();
+    }
+
+    const cleanup = () => {
+      window.removeEventListener("pointermove", movePanel);
+      window.removeEventListener("pointerup", finishPanel);
+      window.removeEventListener("pointercancel", finishPanel);
+    };
+    panelResizeCleanupRef.current = cleanup;
+    window.addEventListener("pointermove", movePanel, { passive: false });
+    window.addEventListener("pointerup", finishPanel);
+    window.addEventListener("pointercancel", finishPanel);
+    event.preventDefault();
+  }
+
+  function resizePanelWithKeyboard(event: React.KeyboardEvent<HTMLDivElement>) {
+    const growKey = panelPosition === "left"
+      ? "ArrowRight"
+      : panelPosition === "right"
+        ? "ArrowLeft"
+        : panelPosition === "top"
+          ? "ArrowDown"
+          : "ArrowUp";
+    const shrinkKey = panelPosition === "left"
+      ? "ArrowLeft"
+      : panelPosition === "right"
+        ? "ArrowRight"
+        : panelPosition === "top"
+          ? "ArrowUp"
+          : "ArrowDown";
+    const bounds = panelSizeBounds(isHorizontalDock);
+    const panelRect = panelRef.current?.getBoundingClientRect();
+    const currentSize = isHorizontalDock
+      ? panelRect?.height ?? horizontalPanelSize
+      : panelRect?.width ?? sidePanelSize;
+
+    if (event.key === growKey) updatePanelSize(currentSize + (event.shiftKey ? PANEL_RESIZE_STEP * 2 : PANEL_RESIZE_STEP));
+    else if (event.key === shrinkKey) updatePanelSize(currentSize - (event.shiftKey ? PANEL_RESIZE_STEP * 2 : PANEL_RESIZE_STEP));
+    else if (event.key === "Home") updatePanelSize(bounds.minimum);
+    else if (event.key === "End") updatePanelSize(bounds.maximum);
+    else return;
+
+    event.preventDefault();
+  }
+
+  function paneRatioBounds(axis: PaneSplitAxis) {
+    const rect = workspacePaneContainerRef.current?.getBoundingClientRect();
+    const available = axis === "vertical" ? rect?.height ?? window.innerHeight : rect?.width ?? window.innerWidth;
+    const minimum = Math.min(0.45, PANE_MIN_SIZE / Math.max(available, PANE_MIN_SIZE * 2));
+    return { maximum: 1 - minimum, minimum };
+  }
+
+  function updatePaneSplitRatio(coordinate: number, axis: PaneSplitAxis) {
+    const rect = workspacePaneContainerRef.current?.getBoundingClientRect();
+    const available = axis === "vertical" ? rect?.height ?? 0 : rect?.width ?? 0;
+    if (!rect || available <= 0) return;
+    const bounds = paneRatioBounds(axis);
+    const ratio = axis === "vertical"
+      ? (coordinate - rect.top) / available
+      : (coordinate - rect.left) / available;
+    setPaneSplitRatio(Math.min(bounds.maximum, Math.max(bounds.minimum, ratio)));
+  }
+
+  function beginPaneResize(event: React.PointerEvent<HTMLDivElement>, axis: PaneSplitAxis) {
+    if (event.button !== 0) return;
+    paneResizeSessionRef.current = { pointerId: event.pointerId };
+    setIsPaneResizing(true);
+    event.currentTarget.focus();
+    paneResizeCleanupRef.current();
+
+    function movePaneDivider(pointerEvent: PointerEvent) {
+      const session = paneResizeSessionRef.current;
+      if (!session || session.pointerId !== pointerEvent.pointerId) return;
+      updatePaneSplitRatio(axis === "vertical" ? pointerEvent.clientY : pointerEvent.clientX, axis);
+      pointerEvent.preventDefault();
+    }
+
+    function finishPaneResize(pointerEvent: PointerEvent) {
+      const session = paneResizeSessionRef.current;
+      if (!session || session.pointerId !== pointerEvent.pointerId) return;
+      paneResizeSessionRef.current = null;
+      setIsPaneResizing(false);
+      paneResizeCleanupRef.current();
+    }
+
+    const cleanup = () => {
+      window.removeEventListener("pointermove", movePaneDivider);
+      window.removeEventListener("pointerup", finishPaneResize);
+      window.removeEventListener("pointercancel", finishPaneResize);
+    };
+    paneResizeCleanupRef.current = cleanup;
+    window.addEventListener("pointermove", movePaneDivider, { passive: false });
+    window.addEventListener("pointerup", finishPaneResize);
+    window.addEventListener("pointercancel", finishPaneResize);
+    event.preventDefault();
+  }
+
+  function resizePanesWithKeyboard(event: React.KeyboardEvent<HTMLDivElement>, axis: PaneSplitAxis) {
+    const bounds = paneRatioBounds(axis);
+    let nextRatio = paneSplitRatio;
+    const decreaseKey = axis === "vertical" ? "ArrowUp" : "ArrowLeft";
+    const increaseKey = axis === "vertical" ? "ArrowDown" : "ArrowRight";
+
+    if (event.key === decreaseKey) nextRatio -= event.shiftKey ? PANE_RESIZE_STEP * 2 : PANE_RESIZE_STEP;
+    else if (event.key === increaseKey) nextRatio += event.shiftKey ? PANE_RESIZE_STEP * 2 : PANE_RESIZE_STEP;
+    else if (event.key === "Home") nextRatio = bounds.minimum;
+    else if (event.key === "End") nextRatio = bounds.maximum;
+    else return;
+
+    setPaneSplitRatio(Math.min(bounds.maximum, Math.max(bounds.minimum, nextRatio)));
+    event.preventDefault();
+  }
+
   const sidePanelTrack = panelPresentation === "hidden"
     ? "0px"
     : panelPresentation === "compact"
       ? "3.5rem"
-      : "clamp(17.5rem, 28vw, 20rem)";
+      : `${sidePanelSize}px`;
   const horizontalPanelTrack = panelPresentation === "hidden"
     ? "0px"
     : panelPresentation === "compact"
       ? "3.5rem"
-      : "clamp(17rem, 32dvh, 21rem)";
+      : `${horizontalPanelSize}px`;
   const workspaceShellStyle: React.CSSProperties = panelPosition === "left"
     ? {
         gridTemplateAreas: '"panel canvas"',
@@ -1606,18 +2065,33 @@ function VaultWorkspace() {
     right: "border-l",
     top: "border-b",
   }[panelPosition];
-
-  const paneGridStyle: React.CSSProperties = {
-    gridTemplateAreas: '"top top top" "left center right" "bottom bottom bottom"',
-    gridTemplateColumns: `${paneTabs.left ? "minmax(0,0.72fr)" : "0"} minmax(0,1.35fr) ${paneTabs.right ? "minmax(0,0.72fr)" : "0"}`,
-    gridTemplateRows: `${paneTabs.top ? "minmax(0,0.72fr)" : "0"} minmax(0,1.35fr) ${paneTabs.bottom ? "minmax(0,0.72fr)" : "0"}`,
-  };
+  const paneGridStyle: React.CSSProperties | undefined = splitAxis === "horizontal"
+    ? {
+        gridTemplateAreas: visiblePaneSlots.includes("topLeft") && visiblePaneSlots.includes("topRight")
+          ? '"topLeft divider topRight"'
+          : '"bottomLeft divider bottomRight"',
+        gridTemplateColumns: `minmax(0, ${paneSplitRatio}fr) 5px minmax(0, ${1 - paneSplitRatio}fr)`,
+      }
+    : splitAxis === "vertical"
+      ? {
+          gridTemplateAreas: visiblePaneSlots.includes("topLeft") && visiblePaneSlots.includes("bottomLeft")
+            ? '"topLeft" "divider" "bottomLeft"'
+            : '"topRight" "divider" "bottomRight"',
+          gridTemplateRows: `minmax(0, ${paneSplitRatio}fr) 5px minmax(0, ${1 - paneSplitRatio}fr)`,
+        }
+      : visiblePanes > 1
+        ? {
+            gridTemplateAreas: '"topLeft topRight" "bottomLeft bottomRight"',
+            gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+            gridTemplateRows: "minmax(0, 1fr) minmax(0, 1fr)",
+          }
+        : undefined;
 
   const markdownEditor = (
     <Textarea
       aria-label="Редактор Markdown"
       className={cn(
-        "min-h-[calc(100dvh-15rem)] resize-none rounded-none border-0 bg-transparent px-0 py-0 font-mono text-[15px] leading-7 shadow-none focus-visible:ring-0 md:min-h-[calc(100dvh-13rem)]",
+        "auto-hide-scrollbar min-h-[calc(100dvh-15rem)] resize-none rounded-none border-0 bg-transparent px-0 py-0 font-mono text-[15px] leading-7 shadow-none focus-visible:ring-0 md:min-h-[calc(100dvh-14rem)]",
         isHorizontalDock && "lg:min-h-[calc(100dvh-30rem)]",
       )}
       onChange={(event) => {
@@ -1628,7 +2102,10 @@ function VaultWorkspace() {
         updateFormattingHint();
         updateActiveHeadingFromEditor();
       }}
-      onScroll={updateFormattingHint}
+      onScroll={(event) => {
+        revealScrollbar(event.currentTarget);
+        updateFormattingHint();
+      }}
       onSelect={() => {
         updateFormattingHint();
         updateActiveHeadingFromEditor();
@@ -1646,30 +2123,22 @@ function VaultWorkspace() {
     const isActive = activePath === path;
     const title = tab.item.kind === "note" ? noteTitle(tab.item) : tab.item.name;
     const tabIsDirty = tab.item.kind === "note" && tab.content !== tab.savedContent;
-    const borderClass = {
-      bottom: "lg:border-t",
-      center: "",
-      left: "lg:border-r",
-      right: "lg:border-l",
-      top: "lg:border-b",
-    }[slot];
 
     return (
       <section
         aria-label={`${paneLabels[slot]} панель: ${title}`}
         className={cn(
-          "min-h-0 min-w-0 flex-col overflow-hidden bg-[var(--editor)]",
-          isActive ? "flex" : "hidden lg:flex",
-          borderClass,
+          "flex h-full w-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--editor)]",
           isActive && visiblePanes > 1 && "ring-1 ring-inset ring-primary/35",
         )}
+        data-workspace-dock-slot={slot}
         id={`workspace-pane-${slot}`}
         key={slot}
         onFocusCapture={() => {
-          if (!isActive) focusPath(path);
+          if (!isActive) focusPane(slot, path);
         }}
         onPointerDown={() => {
-          if (!isActive) focusPath(path);
+          if (!isActive) focusPane(slot, path);
         }}
         style={{ gridArea: slot }}
       >
@@ -1681,7 +2150,7 @@ function VaultWorkspace() {
             <span className="min-w-0 flex-1 truncate font-medium">{title}</span>
             {tabIsDirty ? <span className="size-1.5 shrink-0 rounded-full bg-primary" title="Есть несохранённые изменения" /> : null}
             <span className="text-[10px] text-muted-foreground">{paneLabels[slot]}</span>
-            {slot !== "center" ? (
+            {visiblePanes > 1 ? (
               <button
                 aria-label={`Убрать панель ${paneLabels[slot].toLowerCase()}`}
                 className="grid size-7 place-items-center rounded-[4px] text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70"
@@ -1689,15 +2158,21 @@ function VaultWorkspace() {
                 title="Убрать разделение"
                 type="button"
               >
-                <CloseIcon className="size-3.5" motion="press" />
+                <CloseIcon className="size-3.5" motion="hover" />
               </button>
             ) : null}
           </header>
         ) : null}
 
         <div
-          className="min-h-0 flex-1 overflow-y-auto px-5 py-7 md:px-8 md:py-8"
-          onScroll={isActive && editorMode !== "edit" ? updateActiveHeadingFromPreview : undefined}
+          className={cn(
+            "auto-hide-scrollbar min-h-0 flex-1 overflow-y-auto",
+            visiblePanes > 1 ? "px-3 py-4 md:px-4" : "px-5 py-7 md:px-8 md:py-8",
+          )}
+          onScroll={(event) => {
+            revealScrollbar(event.currentTarget);
+            if (isActive && editorMode !== "edit") updateActiveHeadingFromPreview();
+          }}
           ref={isActive ? canvasScrollRef : undefined}
         >
           {tab.isLoading ? <LoadingCanvas /> : null}
@@ -1705,12 +2180,18 @@ function VaultWorkspace() {
           {!tab.isLoading && tab.item.kind === "note" && isActive ? (
             <div className={cn("relative mx-auto min-h-full", showDocumentOutline ? "max-w-5xl" : "max-w-3xl")}>
               <div className="mx-auto flex min-h-full max-w-3xl flex-col">
-                {editorMode === "edit" || (editorMode === "split" && visiblePanes > 1) ? markdownEditor : null}
+                {editorMode === "edit" ? markdownEditor : null}
                 {editorMode === "preview" ? <MarkdownPreview content={tab.content} /> : null}
-                {editorMode === "split" && visiblePanes === 1 ? (
-                  <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.85fr)]">
+                {editorMode === "split" ? (
+                  <div className={cn(
+                    "grid gap-6",
+                    visiblePanes === 1 && "lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.85fr)] lg:gap-8",
+                  )}>
                     <div className="min-w-0">{markdownEditor}</div>
-                    <aside aria-label="Быстрый просмотр Markdown" className="min-w-0 border-t pt-6 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+                    <aside aria-label="Быстрый просмотр Markdown" className={cn(
+                      "min-w-0 border-t pt-6",
+                      visiblePanes === 1 && "lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0",
+                    )}>
                       <div className="flex items-center justify-between gap-3">
                         <h2 className="text-sm font-semibold tracking-[-0.01em]">Быстрый просмотр</h2>
                         <kbd className="rounded-[4px] border bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">⌘/Ctrl H</kbd>
@@ -1752,7 +2233,7 @@ function VaultWorkspace() {
               <p className="mt-3 text-sm text-muted-foreground">{tab.item.mimeType} · {formatBytes(tab.item.size)} · добавлен {formatDate(tab.item.updatedAt)}</p>
               <Button asChild className="mt-6 rounded-md shadow-none">
                 <a href={`/api/vault/file?path=${encodeURIComponent(tab.item.path)}`} rel="noreferrer" target="_blank">
-                  <ExternalLinkIcon className="size-4" />
+                  <ExternalLinkIcon className="size-4" motion="hover" />
                   Открыть файл
                 </a>
               </Button>
@@ -1767,9 +2248,14 @@ function VaultWorkspace() {
     <>
       <main className="h-[100dvh] overflow-hidden bg-background text-foreground selection:bg-[var(--selection)]">
       <div
-        className="vault-workspace-shell grid h-full min-h-0 transition-[grid-template-columns,grid-template-rows] duration-200 ease-out motion-reduce:transition-none"
+        className={cn(
+          "vault-workspace-shell grid h-full min-h-0",
+          !isPanelResizing && "transition-[grid-template-columns,grid-template-rows] duration-200 ease-out motion-reduce:transition-none",
+          isPanelResizing && "select-none",
+        )}
         data-panel-position={panelPosition}
         data-panel-presentation={panelPresentation}
+        data-panel-resizing={isPanelResizing || undefined}
         style={workspaceShellStyle}
       >
         <section
@@ -1777,14 +2263,13 @@ function VaultWorkspace() {
           className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] bg-[var(--editor)]"
           style={{ gridArea: "canvas" }}
         >
-          <nav aria-label="Открытые файлы" className="row-start-1 z-20 flex min-w-0 items-center border-b bg-muted/55 px-2 py-1.5">
+          <nav aria-label="Открытые файлы" className="row-start-1 z-20 flex min-w-0 items-center border-b bg-muted/45 px-2.5 py-2.5">
             <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <div className="flex min-w-max items-center gap-1" role="tablist">
                 <AnimatePresence initial={false}>
                   {tabs.map((tab) => {
                     const path = tab.item.path;
                     const isActive = activePath === path && workspaceView === "document";
-                    const pane = paneForPath(paneTabs, path);
                     const tabIsDirty = tab.item.kind === "note" && tab.content !== tab.savedContent;
                     const title = tab.item.kind === "note" ? noteTitle(tab.item) : tab.item.name;
 
@@ -1792,8 +2277,9 @@ function VaultWorkspace() {
                       <motion.div
                         animate={{ opacity: 1, scale: 1, x: 0 }}
                         className={cn(
-                          "group/tab relative flex h-9 min-w-32 max-w-52 items-center overflow-hidden rounded-lg text-muted-foreground transition-[background-color,color] duration-150 hover:bg-background/50 hover:text-foreground motion-reduce:transition-none",
+                          "group/tab relative flex h-9 min-w-28 max-w-52 items-center overflow-hidden rounded-md text-muted-foreground transition-[background-color,color,opacity] duration-150 hover:bg-background/50 hover:text-foreground motion-reduce:transition-none",
                           isActive && "text-foreground",
+                          draggedTabPath === path && "opacity-45",
                         )}
                         exit={prefersReducedMotion ? undefined : { opacity: 0, scale: 0.96, x: -6 }}
                         initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.96, x: -6 }}
@@ -1803,33 +2289,32 @@ function VaultWorkspace() {
                       >
                         {isActive ? (
                           prefersReducedMotion ? (
-                            <span aria-hidden="true" className="absolute inset-0 rounded-lg bg-[var(--editor)] shadow-sm ring-1 ring-border/70" />
+                            <span aria-hidden="true" className="absolute inset-0 rounded-md bg-[var(--editor)] shadow-sm ring-1 ring-border/70" />
                           ) : (
                             <motion.span
                               aria-hidden="true"
-                              className="absolute inset-0 rounded-lg bg-[var(--editor)] shadow-sm ring-1 ring-border/70"
+                              className="absolute inset-0 rounded-md bg-[var(--editor)] shadow-sm ring-1 ring-border/70"
                               layoutId="workspace-active-tab"
                               transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                             />
                           )
                         ) : null}
                         <button
-                          aria-controls={pane ? `workspace-pane-${pane}` : undefined}
+                          aria-controls={`workspace-pane-${paneForPath(paneTabs, path) ?? focusedPane}`}
                           aria-selected={isActive}
-                          className="relative z-10 flex min-w-0 flex-1 items-center gap-2 self-stretch rounded-lg pl-3 pr-1 text-left text-xs font-medium outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70 motion-reduce:transition-none"
+                          className="relative z-10 flex min-w-0 flex-1 cursor-grab items-center gap-2 self-stretch rounded-md pl-2.5 pr-1 text-left text-xs font-medium outline-none transition-colors duration-150 active:cursor-grabbing focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70 motion-reduce:transition-none"
+                          data-workspace-tab-path={path}
                           onClick={() => activateTab(path)}
+                          onPointerDown={(event) => beginTabDrag(event, path)}
                           role="tab"
-                          title={path}
+                          title={`${path} — перетащите по полосе или в левую/правую часть документа`}
                           type="button"
                         >
                           {tab.item.kind === "note"
-                            ? <NoteIcon className={cn("size-3.5 shrink-0 transition-colors duration-150", isActive && "text-primary")} motion="press" />
-                            : <AttachmentIcon className={cn("size-3.5 shrink-0 transition-colors duration-150", isActive && "text-primary")} motion="press" />}
+                            ? <NoteIcon className={cn("size-3.5 shrink-0 transition-colors duration-150", isActive && "text-primary")} />
+                            : <AttachmentIcon className={cn("size-3.5 shrink-0 transition-colors duration-150", isActive && "text-primary")} />}
                           <span className="truncate">{title}</span>
                           {tabIsDirty ? <span aria-label="Есть несохранённые изменения" className="size-1.5 shrink-0 rounded-full bg-primary" /> : null}
-                          {pane && pane !== "center" ? (
-                            <span className="shrink-0 rounded-[4px] bg-muted px-1 py-0.5 text-[9px] font-medium text-muted-foreground">{paneLabels[pane]}</span>
-                          ) : null}
                         </button>
                         <button
                           aria-label={`Закрыть ${title}`}
@@ -1837,11 +2322,12 @@ function VaultWorkspace() {
                             "relative z-10 mr-0.5 grid size-8 shrink-0 place-items-center rounded-md opacity-0 outline-none transition-[background-color,opacity] duration-150 hover:bg-muted hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/70 motion-reduce:transition-none group-hover/tab:opacity-70",
                             isActive && "opacity-55",
                           )}
+                          draggable={false}
                           onClick={() => closeTab(path)}
                           title={`Закрыть ${title}`}
                           type="button"
                         >
-                          <CloseIcon className="size-3.5" motion="press" />
+                          <CloseIcon className="size-3.5" motion="hover" />
                         </button>
                       </motion.div>
                     );
@@ -1853,33 +2339,10 @@ function VaultWorkspace() {
               </div>
             </div>
 
-            <div aria-label="Разделить экран" className="ml-2 hidden h-8 shrink-0 self-center items-center gap-0.5 border-l border-border/70 pl-2 md:flex" role="group">
-              <span className="mr-1 min-w-8 whitespace-nowrap text-center text-[10px] tabular-nums text-muted-foreground" title={`${visiblePanes} из ${MAX_VISIBLE_PANES} панелей на экране`}>
-                {visiblePanes}/{MAX_VISIBLE_PANES}
-              </span>
-              {splitOptions.map(({ value, label, Icon }) => {
-                const sourcePane = activePath ? paneForPath(paneTabs, activePath) : null;
-                const wouldAddPane = !paneTabs[value] && (sourcePane === "center" || !sourcePane);
-                const isDisabled = !activePath || tabs.length < 2 || (wouldAddPane && visiblePanes >= MAX_VISIBLE_PANES);
-                return (
-                  <button
-                    aria-label={label}
-                    className="grid size-8 place-items-center rounded-md text-muted-foreground outline-none transition-colors duration-150 hover:bg-background/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70 disabled:pointer-events-none disabled:opacity-35"
-                    disabled={isDisabled}
-                    key={value}
-                    onClick={() => placeActiveTab(value)}
-                    title={isDisabled && tabs.length < 2 ? "Откройте ещё одну вкладку" : label}
-                    type="button"
-                  >
-                    <Icon className="size-3.5" motion="press" />
-                  </button>
-                );
-              })}
-            </div>
           </nav>
 
-          <header className="row-start-2 flex min-h-14 min-w-0 items-center justify-between gap-4 border-b bg-[var(--editor)] px-4 py-2.5 md:px-6">
-            <div className="min-w-0">
+          <header className="row-start-2 flex min-h-14 min-w-0 items-center justify-between gap-2 border-b bg-[var(--editor)] px-3 py-2.5 md:px-6 min-[1101px]:gap-4">
+            <div className="min-w-0 flex-1">
               {workspaceView === "brain" ? (
                 <>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -1901,41 +2364,10 @@ function VaultWorkspace() {
               )}
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
-              <div aria-label="Вид рабочего пространства" className="flex rounded-md bg-muted p-1" role="tablist">
-                <button
-                  aria-selected={workspaceView === "document"}
-                  className={cn(
-                    "h-7 rounded-[5px] px-2.5 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/70",
-                    workspaceView === "document" && "bg-background text-foreground shadow-sm",
-                  )}
-                  onClick={() => setWorkspaceView("document")}
-                  role="tab"
-                  type="button"
-                >
-                  Документ
-                </button>
-                <button
-                  aria-selected={workspaceView === "brain"}
-                  className={cn(
-                    "flex h-7 items-center gap-1.5 rounded-[5px] px-2.5 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/70",
-                    workspaceView === "brain" && "bg-background text-foreground shadow-sm",
-                  )}
-                  onClick={() => {
-                    setFormattingHint(null);
-                    setWorkspaceView("brain");
-                  }}
-                  role="tab"
-                  type="button"
-                >
-                  <GraphIcon className="size-3.5" motion="press" />
-                  <span className="hidden sm:inline">Атлас</span>
-                </button>
-              </div>
-
+            <div className="flex shrink-0 items-center gap-1.5 min-[1101px]:gap-2">
               {workspaceView === "document" && selected?.kind === "note" ? (
                 <>
-                <div aria-label="Режим документа" className="hidden rounded-md bg-muted p-1 sm:flex" role="tablist">
+                <div aria-label="Режим документа" className="hidden rounded-md bg-muted p-1 min-[1101px]:flex" role="tablist">
                   <button
                     aria-selected={editorMode === "edit"}
                     className={cn("h-7 rounded-[5px] px-2.5 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/70", editorMode === "edit" && "bg-background text-foreground shadow-sm")}
@@ -1948,13 +2380,11 @@ function VaultWorkspace() {
                   <button
                     aria-selected={editorMode === "split"}
                     className={cn("h-7 rounded-[5px] px-2.5 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/70 disabled:pointer-events-none disabled:opacity-40", editorMode === "split" && "bg-background text-foreground shadow-sm")}
-                    disabled={visiblePanes > 1}
                     onClick={() => {
                       setFormattingHint(null);
                       setEditorMode("split");
                     }}
                     role="tab"
-                    title={visiblePanes > 1 ? "Уберите разделение файлов, чтобы открыть быстрый просмотр" : undefined}
                     type="button"
                   >
                     Рядом
@@ -1971,13 +2401,25 @@ function VaultWorkspace() {
                 </div>
                 <button
                   aria-label={editorMode === "edit" ? "Открыть просмотр Markdown" : "Открыть редактор Markdown"}
-                  className="h-9 rounded-md bg-muted px-2.5 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70 sm:hidden"
+                  className="hidden size-8 place-items-center rounded-md bg-muted text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70 max-[1100px]:inline-grid"
                   onClick={() => setEditorMode((mode) => (mode === "edit" ? "preview" : "edit"))}
+                  title={editorMode === "edit" ? "Открыть просмотр Markdown" : "Открыть редактор Markdown"}
                   type="button"
                 >
-                  {editorMode === "edit" ? "Просмотр" : "Редактор"}
+                  {editorMode === "edit"
+                    ? <PreviewIcon className="size-3.5" motion="hover" />
+                    : <EditIcon className="size-3.5" motion="hover" />}
                 </button>
-                <Button className="h-9 rounded-md px-3 shadow-none" disabled={!isDirty || isSaving} onClick={() => void saveNote()} size="sm" type="button">
+                <Button
+                  aria-label={isSaving ? "Сохранение…" : isDirty ? "Сохранить" : "Сохранено"}
+                  className="h-8 w-8 rounded-md px-0 shadow-none min-[1101px]:h-9 min-[1101px]:w-auto min-[1101px]:px-3"
+                  disabled={!isDirty || isSaving}
+                  onClick={() => void saveNote()}
+                  size="sm"
+                  title={isSaving ? "Сохранение…" : isDirty ? "Сохранить" : "Сохранено"}
+                  type="button"
+                  variant={isDirty || isSaving ? "default" : "secondary"}
+                >
                   {isSaving ? (
                     <LoadingIcon className="size-3.5" motion="loop" />
                   ) : isDirty ? (
@@ -1985,10 +2427,42 @@ function VaultWorkspace() {
                   ) : (
                     <CheckIcon className="size-3.5" motion="none" />
                   )}
-                  <span>{isSaving ? "Сохранение…" : isDirty ? "Сохранить" : "Сохранено"}</span>
+                  <span className="max-[1100px]:sr-only">{isSaving ? "Сохранение…" : isDirty ? "Сохранить" : "Сохранено"}</span>
                 </Button>
                 </>
               ) : null}
+
+              <div aria-label="Вид рабочего пространства" className="flex rounded-md bg-muted p-1" role="tablist">
+                <button
+                  aria-selected={workspaceView === "document"}
+                  className={cn(
+                    "inline-flex h-7 items-center justify-center gap-1.5 rounded-[5px] px-2 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/70 min-[1101px]:px-2.5",
+                    workspaceView === "document" && "bg-background text-foreground shadow-sm",
+                  )}
+                  onClick={() => setWorkspaceView("document")}
+                  role="tab"
+                  type="button"
+                >
+                  <NoteIcon className="hidden size-3.5 max-[1100px]:block" />
+                  <span className="max-[1100px]:sr-only">Документ</span>
+                </button>
+                <button
+                  aria-selected={workspaceView === "brain"}
+                  className={cn(
+                    "flex h-7 items-center gap-1.5 rounded-[5px] px-2 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/70 min-[1101px]:px-2.5",
+                    workspaceView === "brain" && "bg-background text-foreground shadow-sm",
+                  )}
+                  onClick={() => {
+                    setFormattingHint(null);
+                    setWorkspaceView("brain");
+                  }}
+                  role="tab"
+                  type="button"
+                >
+                  <GraphIcon className="size-3.5" />
+                  <span className="max-[1100px]:hidden">Атлас</span>
+                </button>
+              </div>
             </div>
           </header>
 
@@ -2012,8 +2486,82 @@ function VaultWorkspace() {
                 theme={theme}
               />
             ) : tabs.length > 0 ? (
-              <div className="block h-full min-h-0 overflow-hidden lg:grid" style={paneGridStyle}>
-                {paneSlots.map((slot) => paneTabs[slot] ? renderWorkspacePane(slot, paneTabs[slot]) : null)}
+              <div
+                className={cn(
+                  "relative h-full min-h-0 overflow-hidden",
+                  splitSlot ? "block lg:grid" : "flex",
+                  isPaneResizing && "select-none cursor-col-resize",
+                )}
+                data-workspace-split={splitSlot ?? undefined}
+                ref={workspacePaneContainerRef}
+                style={paneGridStyle}
+              >
+                {splitSlot === "left" && paneTabs.left ? renderWorkspacePane("left", paneTabs.left) : null}
+                {splitSlot ? (
+                  <div
+                    aria-label="Изменить ширину областей документов"
+                    aria-orientation="vertical"
+                    aria-valuemax={80}
+                    aria-valuemin={20}
+                    aria-valuenow={Math.round(paneSplitRatio * 100)}
+                    className="group relative z-20 hidden h-full cursor-col-resize touch-none items-stretch justify-center outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70 lg:flex"
+                    data-workspace-pane-divider
+                    onDoubleClick={() => setPaneSplitRatio(0.5)}
+                    onKeyDown={resizePanesWithKeyboard}
+                    onPointerDown={beginPaneResize}
+                    role="separator"
+                    style={{ gridArea: "divider" }}
+                    tabIndex={0}
+                    title="Перетащите, чтобы изменить ширину · двойной клик — поровну"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "w-px bg-border transition-[background-color,width] duration-150 group-hover:w-0.5 group-hover:bg-primary/70 group-focus-visible:w-0.5 group-focus-visible:bg-primary/70 motion-reduce:transition-none",
+                        isPaneResizing && "w-0.5 bg-primary",
+                      )}
+                    />
+                  </div>
+                ) : null}
+                {paneTabs.center ? renderWorkspacePane("center", paneTabs.center) : null}
+                {splitSlot === "right" && paneTabs.right ? renderWorkspacePane("right", paneTabs.right) : null}
+
+                {draggedTabPath && tabs.length >= 2 ? (
+                  <div
+                    aria-label="Области размещения вкладки"
+                    className="absolute inset-0 z-40 hidden grid-cols-2 gap-3 bg-background/15 p-3 backdrop-blur-[1px] lg:grid"
+                    data-workspace-dock-overlay
+                  >
+                    {(["left", "right"] as const).map((target) => {
+                      const isTargeted = dockTarget === target;
+                      const DockIcon = target === "left" ? DockLeftIcon : DockRightIcon;
+                      return (
+                        <div
+                          aria-label={`Открыть вкладку ${target === "left" ? "слева" : "справа"}`}
+                          className={cn(
+                            "flex items-center justify-center rounded-lg border border-dashed transition-[background-color,border-color,box-shadow] duration-150 motion-reduce:transition-none",
+                            isTargeted
+                              ? "border-primary/80 bg-primary/10 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--primary)_28%,transparent)]"
+                              : "border-border/75 bg-background/45",
+                          )}
+                          data-workspace-dock-target={target}
+                          key={target}
+                        >
+                          <span className={cn(
+                            "flex items-center gap-2 rounded-md border bg-background/90 px-3 py-2 text-xs font-medium shadow-sm transition-[color,transform] duration-150 motion-reduce:transition-none",
+                            isTargeted ? "scale-[1.02] text-foreground" : "text-muted-foreground",
+                          )}>
+                            <DockIcon className="size-4" motion="none" />
+                            <span>{target === "left" ? "Открыть слева" : "Открыть справа"}</span>
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+                <span aria-live="polite" className="sr-only">
+                  {draggedTabPath ? "Выберите левую или правую область и отпустите вкладку" : ""}
+                </span>
               </div>
             ) : (
               <div className="mx-auto flex h-full max-w-md flex-col items-start px-6 pt-16">
@@ -2030,14 +2578,55 @@ function VaultWorkspace() {
         <aside
           aria-label="Панель Vault"
           className={cn(
-            "vault-workspace-panel relative flex min-h-0 min-w-0 flex-col bg-sidebar/80 transition-[opacity] duration-150",
+            "vault-workspace-panel relative flex min-h-0 min-w-0 flex-col bg-sidebar transition-[opacity] duration-150",
             panelPresentation === "hidden" ? "overflow-visible" : "overflow-hidden",
             panelBorderClass,
           )}
           data-panel-position={panelPosition}
+          data-panel-closing={isPanelClosing || undefined}
           data-panel-presentation={panelPresentation}
+          id="vault-panel"
+          ref={panelRef}
           style={{ gridArea: "panel" }}
         >
+          {panelPresentation === "expanded" ? (
+            <div
+              aria-controls="vault-panel"
+              aria-label="Изменить размер панели Vault"
+              aria-orientation={isHorizontalDock ? "horizontal" : "vertical"}
+              aria-valuemax={isHorizontalDock ? PANEL_HORIZONTAL_MAX_SIZE : PANEL_SIDE_MAX_SIZE}
+              aria-valuemin={isHorizontalDock ? PANEL_HORIZONTAL_MIN_SIZE : PANEL_SIDE_MIN_SIZE}
+              aria-valuenow={isHorizontalDock ? horizontalPanelSize : sidePanelSize}
+              className={cn(
+                "group/resizer absolute z-40 touch-none outline-none",
+                (panelPosition === "left" || panelPosition === "right") && "inset-y-0 w-2 cursor-col-resize",
+                panelPosition === "left" && "right-0",
+                panelPosition === "right" && "left-0",
+                (panelPosition === "top" || panelPosition === "bottom") && "inset-x-0 h-2 cursor-row-resize",
+                panelPosition === "top" && "bottom-0",
+                panelPosition === "bottom" && "top-0",
+              )}
+              onDoubleClick={() => updatePanelSize(isHorizontalDock ? PANEL_HORIZONTAL_DEFAULT_SIZE : PANEL_SIDE_DEFAULT_SIZE)}
+              onKeyDown={resizePanelWithKeyboard}
+              onPointerDown={beginPanelResize}
+              role="separator"
+              tabIndex={0}
+              title="Потяните, чтобы изменить размер · двойной клик — сбросить"
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "absolute bg-border transition-[background-color,transform] duration-150 group-hover/resizer:bg-primary group-focus-visible/resizer:bg-primary",
+                  (panelPosition === "left" || panelPosition === "right") && "inset-y-0 w-px group-hover/resizer:scale-x-[2] group-focus-visible/resizer:scale-x-[2]",
+                  panelPosition === "left" && "right-0",
+                  panelPosition === "right" && "left-0",
+                  (panelPosition === "top" || panelPosition === "bottom") && "inset-x-0 h-px group-hover/resizer:scale-y-[2] group-focus-visible/resizer:scale-y-[2]",
+                  panelPosition === "top" && "bottom-0",
+                  panelPosition === "bottom" && "top-0",
+                )}
+              />
+            </div>
+          ) : null}
           <input ref={fileInputRef} className="sr-only" type="file" onChange={uploadFile} />
           <VaultLibrary
             busyPaths={[
@@ -2073,7 +2662,7 @@ function VaultWorkspace() {
               void openItem(item);
             }}
             onOrderChange={setLibraryOrder}
-            onPresentationChange={setPanelPresentation}
+            onPresentationChange={changePanelPresentation}
             onPreviewEnd={scheduleHoverPreviewDismissal}
             onPreviewItem={showHoverPreview}
             onRename={renameLibraryTarget}
@@ -2086,7 +2675,7 @@ function VaultWorkspace() {
             selectedPath={selected?.path}
             settings={(
               <PanelSettings
-                onHide={() => setPanelPresentation("hidden")}
+                onHide={() => changePanelPresentation("hidden")}
                 onPositionChange={setPanelPosition}
                 onThemeChange={setTheme}
                 position={panelPosition}

@@ -24,6 +24,7 @@ import ListSvg from "@iconify-react/line-md/list-3";
 import LoadingSvg from "@iconify-react/line-md/loading-loop";
 import MinusSvg from "@iconify-react/line-md/minus";
 import MonitorSvg from "@iconify-react/line-md/monitor";
+import PreviewSvg from "@iconify-react/line-md/monitor-screenshot";
 import MoonSvg from "@iconify-react/line-md/moon";
 import PlusSvg from "@iconify-react/line-md/plus";
 import SearchSvg from "@iconify-react/line-md/search";
@@ -83,6 +84,7 @@ const MinusIcon = createAppIcon(MinusSvg, "MinusIcon");
 const MonitorIcon = createAppIcon(MonitorSvg, "MonitorIcon");
 const MoonIcon = createAppIcon(MoonSvg, "MoonIcon");
 const NoteIcon = createAppIcon(FileDocumentSvg, "NoteIcon");
+const PreviewIcon = createAppIcon(PreviewSvg, "PreviewIcon");
 const PlusIcon = createAppIcon(PlusSvg, "PlusIcon");
 const SearchIcon = createAppIcon(SearchSvg, "SearchIcon");
 const SunIcon = createAppIcon(SunnySvg, "SunIcon");
@@ -116,6 +118,7 @@ export {
   MonitorIcon,
   MoonIcon,
   NoteIcon,
+  PreviewIcon,
   PlusIcon,
   SearchIcon,
   SunIcon,

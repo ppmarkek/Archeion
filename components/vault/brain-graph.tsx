@@ -177,7 +177,7 @@ function makeGraphLayout(data: VaultGraphData, scope: GraphScope, selectedFolder
         ...node,
         degree,
         external: scope === "folder" && !primaryIds.has(node.id),
-        radius: 3.6 + Math.min(5.8, Math.sqrt(degree) * 1.45),
+        radius: 4.8 + Math.min(5.8, Math.sqrt(degree) * 1.45),
         x: centerX + Math.cos(angle) * distance,
         y: centerY + Math.sin(angle) * distance,
       });
@@ -319,6 +319,7 @@ function GraphCanvas({
 
   React.useEffect(() => () => {
     if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
+    frameRef.current = null;
   }, []);
 
   const adjacency = React.useMemo(() => {
@@ -329,6 +330,10 @@ function GraphCanvas({
     }
     return map;
   }, [layout.edges]);
+  const nodesByRadius = React.useMemo(
+    () => [...layout.nodes].sort((left, right) => left.radius - right.radius),
+    [layout.nodes],
+  );
 
   const drawGraph = React.useCallback(() => {
     const canvas = canvasRef.current;
@@ -379,8 +384,7 @@ function GraphCanvas({
       context.stroke();
     }
 
-    const nodes = [...layout.nodes].sort((left, right) => left.radius - right.radius);
-    for (const node of nodes) {
+    for (const node of nodesByRadius) {
       const position = positionsRef.current.get(node.id);
       if (!position) continue;
 
@@ -429,7 +433,7 @@ function GraphCanvas({
     focusedNodeId,
     hovered?.id,
     layout.edges,
-    layout.nodes,
+    nodesByRadius,
     normalisedQuery,
     selectedPath,
   ]);
@@ -458,7 +462,7 @@ function GraphCanvas({
       const x = position.x * viewport.scale + viewport.x;
       const y = position.y * viewport.scale + viewport.y;
       const distance = Math.hypot(screenX - x, screenY - y);
-      const hitRadius = Math.max(8, node.radius * Math.sqrt(viewport.scale) + 5);
+      const hitRadius = Math.max(14, node.radius * Math.sqrt(viewport.scale) + 7);
       if (distance <= hitRadius && distance < closestDistance) {
         picked = node;
         closestDistance = distance;
@@ -527,7 +531,7 @@ function GraphCanvas({
       <canvas
         aria-describedby="brain-graph-instructions"
         aria-label={`Граф знаний: ${formatRussianCount(layout.nodes.length, ["заметка", "заметки", "заметок"])} и ${formatRussianCount(layout.edges.length, ["связь", "связи", "связей"])}`}
-        className="absolute inset-0 size-full touch-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
+        className="absolute inset-0 size-full cursor-grab touch-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
         onBlur={() => {
           setFocusedNodeId(null);
           setHovered(null);
@@ -624,11 +628,31 @@ function GraphCanvas({
 
           const node = pickNode(point.x, point.y);
           event.currentTarget.style.cursor = node ? "pointer" : "grab";
-          setHovered(node ? {
+          const nodePosition = node ? positionsRef.current.get(node.id) : null;
+          const nextHovered = node && nodePosition ? {
             id: node.id,
-            left: clamp(point.x + 14, 12, Math.max(12, sizeRef.current.width - 240)),
-            top: clamp(point.y + 14, 12, Math.max(12, sizeRef.current.height - 88)),
-          } : null);
+            left: clamp(
+              nodePosition.x * viewportRef.current.scale + viewportRef.current.x + 14,
+              12,
+              Math.max(12, sizeRef.current.width - 240),
+            ),
+            top: clamp(
+              nodePosition.y * viewportRef.current.scale + viewportRef.current.y + 14,
+              12,
+              Math.max(12, sizeRef.current.height - 88),
+            ),
+          } : null;
+          setHovered((current) => {
+            if (!current && !nextHovered) return current;
+            if (
+              current
+              && nextHovered
+              && current.id === nextHovered.id
+              && current.left === nextHovered.left
+              && current.top === nextHovered.top
+            ) return current;
+            return nextHovered;
+          });
         }}
         onPointerUp={(event) => {
           const drag = dragRef.current;
@@ -664,7 +688,7 @@ function GraphCanvas({
           onClick={() => zoomAt(1 / 1.18)}
           type="button"
         >
-          <MinusIcon className="size-4" motion="press" />
+          <MinusIcon className="size-4" motion="hover" />
         </button>
         <span className="w-14 text-center text-[11px] tabular-nums text-muted-foreground">{zoomPercent}%</span>
         <button
@@ -673,7 +697,7 @@ function GraphCanvas({
           onClick={() => zoomAt(1.18)}
           type="button"
         >
-          <PlusIcon className="size-4" motion="press" />
+          <PlusIcon className="size-4" motion="hover" />
         </button>
         <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
         <button
@@ -683,7 +707,7 @@ function GraphCanvas({
           title="Показать весь граф (0)"
           type="button"
         >
-          <FitIcon className="size-4" motion="press" />
+          <FitIcon className="size-4" motion="hover" />
         </button>
       </div>
 
@@ -926,7 +950,7 @@ function BrainGraph({
               onClick={() => setIsLegendOpen(false)}
               type="button"
             >
-              <ChevronLeftIcon className="size-4" />
+              <ChevronLeftIcon className="size-4" motion="hover" />
             </button>
           </header>
 
