@@ -12,6 +12,9 @@ release/
 
 graphify-out/
 .playwright-cli/
+playwright-report/
+blob-report/
+test-results/
 data/
 /cache/
 /.cache/

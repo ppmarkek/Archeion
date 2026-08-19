@@ -1,33 +1,33 @@
 {
   "approval": {
-    "at": "2026-08-19T01:01:06.053871+00:00",
-    "brief_digest": "sha256:f7c4b08300ae57aba2707cd125ae184a8c188775d4a698538c0026f138bda1cb",
-    "brief_record_digest": "sha256:f7d844f3c94f81133847aa9030ab60070c3532d801e63b3a66afc1b853d3ec59",
+    "at": "2026-08-19T02:48:35.627111+00:00",
+    "brief_digest": "sha256:5481425661e6193b80793ac52799a9df24b42f31bdcbd35424a041b8b6b18480",
+    "brief_record_digest": "sha256:d8d3c1f8ee78ce910297164295dd90cb1075aaee8dc77b004d50ed077753b5fe",
     "by": "Mark",
-    "ownership_digest": "sha256:f558a6ec204d71371d2e7bfad9ddbe6faf554b6a3328050a2968bade04e21ce1",
-    "plan_digest": "sha256:120a109b4764da5f0b29388039c60e9d4d18c946636e98f3c3a556a88f4e9ab3",
-    "plan_summary": "\u0412\u0432\u0435\u0441\u0442\u0438 \u0433\u043b\u043e\u0431\u0430\u043b\u044c\u043d\u0443\u044e \u0442\u0438\u043f\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u0443\u044e \u0441\u0438\u0441\u0442\u0435\u043c\u0443 \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0439 \u0441 \u043e\u0447\u0435\u0440\u0435\u0434\u044c\u044e, \u0434\u0435\u0434\u0443\u043f\u043b\u0438\u043a\u0430\u0446\u0438\u0435\u0439, \u0443\u043f\u0440\u0430\u0432\u043b\u044f\u0435\u043c\u044b\u043c\u0438 \u0442\u0430\u0439\u043c\u0435\u0440\u0430\u043c\u0438, \u0437\u0430\u043a\u0440\u044b\u0442\u0438\u0435\u043c, \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u043e\u0439 \u0441\u0435\u043c\u0430\u043d\u0442\u0438\u043a\u043e\u0439 \u0438 \u0441\u0434\u0435\u0440\u0436\u0430\u043d\u043d\u043e\u0439 motion-\u0430\u043d\u0438\u043c\u0430\u0446\u0438\u0435\u0439; \u0437\u0430\u043c\u0435\u043d\u0438\u0442\u044c \u0442\u0435\u043a\u0443\u0449\u0438\u0439 message \u0432 Vault; \u0434\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0439 \u0434\u0438\u0430\u043b\u043e\u0433 \u043d\u0430\u0441\u0442\u0440\u043e\u0435\u043a \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f \u0438 \u0432\u0435\u0440\u0441\u0438\u043e\u043d\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u043e\u0435 local-first \u0445\u0440\u0430\u043d\u0435\u043d\u0438\u0435 \u043d\u0430\u0441\u0442\u0440\u043e\u0435\u043a \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0439 \u0438 \u0432\u043d\u0435\u0448\u043d\u0435\u0433\u043e \u0432\u0438\u0434\u0430; \u043d\u0435 \u0437\u0430\u0442\u0440\u0430\u0433\u0438\u0432\u0430\u0442\u044c AI, auth, \u043e\u0431\u0443\u0447\u0435\u043d\u0438\u0435 \u0438 cloud sync.",
+    "ownership_digest": "sha256:a632c0ef572f4c523efb543dc81f672458c762d5cc0d10886ad170e18aab18df",
+    "plan_digest": "sha256:bccf4c023c3e3f099c08757cbd7fe083885fc502bea0828060d29239b3566004",
+    "plan_summary": "\u0412\u0432\u0435\u0441\u0442\u0438 \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u0435\u043c\u044b\u0439 \u0442\u0435\u0441\u0442\u043e\u0432\u044b\u0439 \u0444\u0443\u043d\u0434\u0430\u043c\u0435\u043d\u0442 Vault: Vitest \u0434\u043b\u044f unit \u0438 Route Handler contracts, \u0438\u0437\u043e\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0439 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u044b\u0439 Vault fixture, \u0437\u0430\u0442\u0435\u043c Playwright real-server e2e \u043d\u0430 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u043e\u043c \u043f\u043e\u0440\u0442\u0443. \u0420\u0435\u0430\u043b\u0438\u0437\u043e\u0432\u044b\u0432\u0430\u0442\u044c \u0432\u0435\u0440\u0442\u0438\u043a\u0430\u043b\u044c\u043d\u044b\u043c\u0438 RED\u2192GREEN-\u0441\u0440\u0435\u0437\u0430\u043c\u0438, \u043d\u0430\u0447\u0438\u043d\u0430\u044f \u0441 \u0437\u0430\u043f\u0440\u0435\u0442\u0430 path traversal.",
     "provenance": "audit",
-    "record_digest": "sha256:c364bb520b90a13d5ddfc1d2398abe0cdc22d820183a71e95d43f0afcd581bd7",
+    "record_digest": "sha256:31f33cc52688724a78ede7f6caed018e366fe4178319a68dea8146b5781c4c13",
     "ruleset_digest": "sha256:94d25e32c5a72ad113da4cbdd772e5e421cd36716d94a622724dc34e1c28a2cb",
     "ruleset_version": "ruleset-e15da02dc403",
-    "task_digest": "sha256:972158297eccf6705779911fc3af39af03ebbe79fbec37052e3f9aba2c1825de"
+    "task_digest": "sha256:1cc71f8f96a746164ca10204df060634e970e0c820ae7a9b6d9e67cbb053f5ad"
   },
   "brief": {
-    "constraints": "\u0426\u0435\u043b\u0435\u0432\u0430\u044f \u0430\u0440\u0445\u0438\u0442\u0435\u043a\u0442\u0443\u0440\u0430 \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u0430: local-first \u0441 \u043d\u0435\u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u044b\u043c \u0430\u043a\u043a\u0430\u0443\u043d\u0442\u043e\u043c \u0438 \u043f\u043e\u043b\u043d\u043e\u0439 \u043e\u0431\u043b\u0430\u0447\u043d\u043e\u0439 \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0430\u0446\u0438\u0435\u0439 \u043f\u0440\u0438 \u0435\u0433\u043e \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0438. \u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0442\u0435\u043a\u0443\u0449\u0438\u0435 \u0434\u0430\u043d\u043d\u044b\u0435 \u0438 \u043f\u043e\u0432\u0435\u0434\u0435\u043d\u0438\u0435 Vault; \u0441\u043e\u0431\u043b\u044e\u0434\u0430\u0442\u044c \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u043e\u0441\u0442\u044c, reduced motion \u0438 \u043f\u0440\u0430\u0432\u0438\u043b\u0430 \u0436\u0438\u0432\u044b\u0445 \u0438\u043a\u043e\u043d\u043e\u043a \u043f\u0440\u043e\u0435\u043a\u0442\u0430.",
-    "invariant": "\u041a\u0440\u0438\u0442\u0435\u0440\u0438\u0439 Mark: \u0441\u0434\u0435\u043b\u0430\u0442\u044c \u0432 \u043f\u0435\u0440\u0432\u043e\u043c \u044d\u0442\u0430\u043f\u0435 \u043d\u043e\u0440\u043c\u0430\u043b\u044c\u043d\u0443\u044e \u043b\u043e\u0433\u0438\u043a\u0443 \u0434\u043b\u044f \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0439, \u0441\u0434\u0435\u043b\u0430\u0442\u044c \u043b\u0443\u0447\u0448\u0435 \u0434\u0438\u0437\u0430\u0439\u043d \u0441 \u0430\u043d\u0438\u043c\u0430\u0446\u0438\u044f\u043c\u0438 \u0438 \u0438\u043a\u043e\u043d\u043a\u0430\u043c\u0438.",
-    "outcome": "\u041d\u0430 \u043f\u0435\u0440\u0432\u043e\u043c \u044d\u0442\u0430\u043f\u0435 \u0440\u0435\u0430\u043b\u0438\u0437\u043e\u0432\u0430\u0442\u044c \u043d\u043e\u0440\u043c\u0430\u043b\u044c\u043d\u0443\u044e \u0443\u043f\u0440\u0430\u0432\u043b\u044f\u0435\u043c\u0443\u044e \u043b\u043e\u0433\u0438\u043a\u0443 \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0439 \u0438 \u0443\u043b\u0443\u0447\u0448\u0438\u0442\u044c \u0438\u0445 \u0434\u0438\u0437\u0430\u0439\u043d \u0441 \u0443\u043c\u0435\u0441\u0442\u043d\u044b\u043c\u0438 \u0430\u043d\u0438\u043c\u0430\u0446\u0438\u044f\u043c\u0438 \u0438 \u0438\u043a\u043e\u043d\u043a\u0430\u043c\u0438, \u0430 \u0442\u0430\u043a\u0436\u0435 \u0441\u043e\u0437\u0434\u0430\u0442\u044c \u0444\u0443\u043d\u0434\u0430\u043c\u0435\u043d\u0442 \u043d\u0430\u0441\u0442\u0440\u043e\u0435\u043a.",
-    "scope": "\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0438 \u0443\u043f\u0440\u0430\u0432\u043b\u044f\u0435\u043c\u044b\u0435 \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u044f. \u041d\u0435 \u0432\u0445\u043e\u0434\u044f\u0442 \u0432 \u044d\u0442\u043e\u0442 \u044d\u0442\u0430\u043f: AI-\u0430\u0433\u0435\u043d\u0442\u044b, \u043f\u0440\u0435\u0434\u043c\u0435\u0442\u043d\u043e-\u043d\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e\u0435 \u043e\u0431\u0443\u0447\u0435\u043d\u0438\u0435, \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044f, \u0430\u043a\u043a\u0430\u0443\u043d\u0442 \u0438 \u043e\u0431\u043b\u0430\u0447\u043d\u0430\u044f \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0430\u0446\u0438\u044f.",
-    "uncertainty": "\u0413\u043b\u0430\u0432\u043d\u043e\u0439 \u043d\u0435\u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0451\u043d\u043d\u043e\u0441\u0442\u0438 \u043f\u043e\u043a\u0430 \u043d\u0435\u0442."
+    "constraints": "\u041a\u0430\u0436\u0434\u044b\u0439 \u0442\u0435\u0441\u0442 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u0442\u043e\u043b\u044c\u043a\u043e \u0432 \u043f\u0440\u043e\u0432\u0435\u0440\u0435\u043d\u043d\u043e\u043c \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e\u043c \u043a\u0430\u0442\u0430\u043b\u043e\u0433\u0435 ARCHEION_VAULT_DIR; DATABASE_URL \u043e\u0442\u043a\u043b\u044e\u0447\u0451\u043d; \u043e\u043a\u0440\u0443\u0436\u0435\u043d\u0438\u0435 \u0432\u043e\u0441\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u0435\u0442\u0441\u044f \u043f\u043e\u0441\u043b\u0435 \u0442\u0435\u0441\u0442\u0430; \u0444\u0430\u0439\u043b\u043e\u0432\u044b\u0435 \u0442\u0435\u0441\u0442\u044b \u043d\u0435 \u043a\u043e\u043d\u0444\u043b\u0438\u043a\u0442\u0443\u044e\u0442 \u0441 module-global queue/cache; \u0442\u0435\u0441\u0442\u044b \u0434\u0435\u0442\u0435\u0440\u043c\u0438\u043d\u0438\u0440\u043e\u0432\u0430\u043d\u044b \u0438 \u043f\u0440\u043e\u0432\u0435\u0440\u044f\u044e\u0442 \u043f\u0443\u0431\u043b\u0438\u0447\u043d\u043e\u0435 \u043f\u043e\u0432\u0435\u0434\u0435\u043d\u0438\u0435; \u043d\u043e\u0432\u044b\u0435 \u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e\u0441\u0442\u0438 \u043e\u0433\u0440\u0430\u043d\u0438\u0447\u0435\u043d\u044b \u043d\u0435\u043e\u0431\u0445\u043e\u0434\u0438\u043c\u044b\u043c test tooling.",
+    "invariant": "Mark: \u0432\u0441\u0451 \u0445\u043e\u0440\u043e\u0448\u043e \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u043d\u0430 \u043f\u0440\u0430\u043a\u0442\u0438\u043a\u0435, \u043d\u043e \u0435\u0449\u0451 \u043d\u0443\u0436\u043d\u043e \u043f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c \u0431\u043e\u043b\u0435\u0435 \u0433\u043b\u0443\u0431\u043e\u043a\u043e \u2014 \u0441\u0430\u043c \u043a\u043e\u0434. \u0410\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u0442\u0435\u0441\u0442\u044b \u043d\u0438 \u043f\u0440\u0438 \u043a\u0430\u043a\u0438\u0445 \u0443\u0441\u043b\u043e\u0432\u0438\u044f\u0445 \u043d\u0435 \u0447\u0438\u0442\u0430\u044e\u0442, \u043d\u0435 \u0438\u0437\u043c\u0435\u043d\u044f\u044e\u0442 \u0438 \u043d\u0435 \u0443\u0434\u0430\u043b\u044f\u044e\u0442 \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c\u0441\u043a\u0438\u0435 \u0444\u0430\u0439\u043b\u044b Vault \u0438\u043b\u0438 \u0434\u0430\u043d\u043d\u044b\u0435 \u0411\u0414.",
+    "outcome": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u0435\u043c\u044b\u0439 \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0439 \u043d\u0430\u0431\u043e\u0440 unit, API integration \u0438 browser/e2e-\u0442\u0435\u0441\u0442\u043e\u0432, \u043a\u043e\u0442\u043e\u0440\u044b\u0439 \u0433\u043b\u0443\u0431\u043e\u043a\u043e \u043f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u0442 \u043a\u0440\u0438\u0442\u0438\u0447\u0435\u0441\u043a\u043e\u0435 \u043f\u043e\u0432\u0435\u0434\u0435\u043d\u0438\u0435 Vault \u0438 \u043b\u043e\u0432\u0438\u0442 \u0440\u0435\u0433\u0440\u0435\u0441\u0441\u0438\u0438.",
+    "scope": "\u041d\u0430\u0441\u0442\u0440\u043e\u0438\u0442\u044c \u0442\u0435\u0441\u0442\u043e\u0432\u044b\u0435 runners \u0438 npm scripts; \u0434\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0438\u0437\u043e\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0439 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u044b\u0439 Vault fixture; \u043f\u043e\u043a\u0440\u044b\u0442\u044c \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u044c \u043f\u0443\u0442\u0435\u0439, \u0444\u0430\u0439\u043b\u043e\u0432\u044b\u0435 \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438, \u043f\u043e\u0438\u0441\u043a, \u0433\u0440\u0430\u0444, Route Handler contracts \u0438 \u043e\u0434\u0438\u043d \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0439 browser/e2e-\u043f\u0443\u0442\u044c. \u041d\u0435 \u043c\u0435\u043d\u044f\u0442\u044c \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u043e\u0432\u0443\u044e \u043b\u043e\u0433\u0438\u043a\u0443 \u0438 \u0434\u0438\u0437\u0430\u0439\u043d, \u043d\u0435 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0430\u0442\u044c \u0440\u0435\u0430\u043b\u044c\u043d\u0443\u044e \u0411\u0414 \u0438 \u043d\u0435 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u044c \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c\u0441\u043a\u0438\u0439 Vault.",
+    "uncertainty": "\u041a\u0430\u043a\u043e\u0439 \u043c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u044b\u0439 \u043d\u0430\u0431\u043e\u0440 Vitest/Playwright-\u043a\u043e\u043d\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u0438 \u0434\u0430\u0441\u0442 \u043d\u0430\u0434\u0451\u0436\u043d\u044b\u0435 unit, Route Handler \u0438 \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0439 Next browser/e2e-\u0442\u0435\u0441\u0442\u044b \u0431\u0435\u0437 \u0444\u043b\u0430\u043a\u043e\u0432 \u0438 \u0432\u043b\u0438\u044f\u043d\u0438\u044f \u043d\u0430 \u0440\u0430\u0431\u043e\u0447\u0438\u0439 localhost:3000."
   },
   "brief_record": {
-    "at": "2026-08-19T00:45:13.016029+00:00",
-    "brief_digest": "sha256:f7c4b08300ae57aba2707cd125ae184a8c188775d4a698538c0026f138bda1cb",
+    "at": "2026-08-19T02:40:02.792635+00:00",
+    "brief_digest": "sha256:5481425661e6193b80793ac52799a9df24b42f31bdcbd35424a041b8b6b18480",
     "by": "Mark"
   },
   "change_baseline": {
     "format_version": 1,
-    "head": "a7d14279508722f78ece7cd83db92c205b8748b4",
+    "head": "4b33504eed028ccad11f2359315b9d2dfc594919",
     "project_prefix": "",
     "source": "git",
     "submodule_oids": {},
@@ -35,123 +35,78 @@
   },
   "comprehension": {
     "baseline": {
-      "at": "2026-08-19T00:57:47.967374+00:00",
+      "at": "2026-08-19T02:45:19.725792+00:00",
       "by": "Mark",
-      "statement": "Mark: \u043f\u043e\u0442\u043e\u043c\u0443 \u0447\u0442\u043e \u0442\u0430\u043a \u0431\u0443\u0434\u0435\u0442 \u043b\u0435\u0433\u0447\u0435 \u0437\u0430 \u0432\u0441\u0435\u043c \u0441\u043b\u0435\u0434\u0438\u0442\u044c \u0438 \u0431\u0443\u0434\u0435\u0442 \u043b\u0443\u0447\u0448\u0435 \u043f\u043e \u043e\u043f\u0442\u0438\u043c\u0435\u0437\u0430\u0446\u0438\u0438."
+      "statement": "Mark: \u0432\u0441\u0451 \u0445\u043e\u0440\u043e\u0448\u043e \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u043d\u0430 \u043f\u0440\u0430\u043a\u0442\u0438\u043a\u0435, \u043d\u043e \u0435\u0449\u0451 \u043d\u0443\u0436\u043d\u043e \u043f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c \u0431\u043e\u043b\u0435\u0435 \u0433\u043b\u0443\u0431\u043e\u043a\u043e \u2014 \u0441\u0430\u043c \u043a\u043e\u0434."
     },
     "recall_delay_hours": 24,
     "recall_due_at": null
   },
-  "created_at": "2026-08-19T00:39:58.076519+00:00",
+  "created_at": "2026-08-19T02:39:31.840531+00:00",
   "events": [
     {
-      "at": "2026-08-19T00:39:58.076686+00:00",
+      "at": "2026-08-19T02:39:31.840686+00:00",
       "state": "briefing",
       "type": "task.started"
     },
     {
-      "at": "2026-08-19T00:45:13.016060+00:00",
+      "at": "2026-08-19T02:40:02.792682+00:00",
       "state": "briefing",
       "type": "task.brief.recorded"
     },
     {
-      "at": "2026-08-19T00:57:47.967411+00:00",
+      "at": "2026-08-19T02:45:19.725827+00:00",
       "state": "planned",
       "type": "task.plan"
     },
     {
-      "at": "2026-08-19T01:01:06.054180+00:00",
+      "at": "2026-08-19T02:48:35.627457+00:00",
       "state": "approved",
       "type": "task.approve"
     },
     {
-      "at": "2026-08-19T01:01:23.114690+00:00",
+      "at": "2026-08-19T02:48:47.988827+00:00",
       "state": "implementing",
       "type": "task.implement"
     },
     {
-      "at": "2026-08-19T01:31:26.121118+00:00",
+      "at": "2026-08-19T03:16:23.731492+00:00",
       "state": "review_ready",
       "type": "task.review"
     },
     {
-      "at": "2026-08-19T01:48:03.134801+00:00",
-      "state": "quality_checked",
-      "type": "task.precommit"
-    },
-    {
-      "at": "2026-08-19T01:56:08.252742+00:00",
-      "state": "implementing",
-      "type": "task.revise.implement"
-    },
-    {
-      "at": "2026-08-19T02:13:35.848839+00:00",
-      "state": "review_ready",
-      "type": "task.review"
-    },
-    {
-      "at": "2026-08-19T02:13:44.771847+00:00",
-      "state": "quality_checked",
-      "type": "task.precommit"
-    },
-    {
-      "at": "2026-08-19T02:16:50.569598+00:00",
-      "state": "implementing",
-      "type": "task.revise.implement"
-    },
-    {
-      "at": "2026-08-19T02:17:54.737010+00:00",
-      "state": "review_ready",
-      "type": "task.review"
-    },
-    {
-      "at": "2026-08-19T02:18:07.172443+00:00",
-      "state": "quality_checked",
-      "type": "task.precommit"
-    },
-    {
-      "at": "2026-08-19T02:19:04.372574+00:00",
-      "state": "implementing",
-      "type": "task.revise.implement"
-    },
-    {
-      "at": "2026-08-19T02:23:49.574951+00:00",
-      "state": "review_ready",
-      "type": "task.review"
-    },
-    {
-      "at": "2026-08-19T02:23:58.981433+00:00",
+      "at": "2026-08-19T03:16:46.821098+00:00",
       "state": "quality_checked",
       "type": "task.precommit"
     }
   ],
   "human_artifact": {
-    "at": "2026-08-19T00:57:47.967374+00:00",
+    "at": "2026-08-19T02:45:19.725792+00:00",
     "by": "Mark",
-    "content": "Mark: \u0441\u0434\u0435\u043b\u0430\u0442\u044c \u0432 \u043f\u0435\u0440\u0432\u043e\u043c \u044d\u0442\u0430\u043f\u0435 \u043d\u043e\u0440\u043c \u043b\u043e\u0433\u0438\u043a\u0443 \u0434\u043b\u044f \u0443\u0432\u0438\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0439, \u0441\u0434\u0435\u043b\u0430\u0442\u044c \u043b\u0443\u0447\u0448\u0435 \u0434\u0438\u0437\u0430\u0439\u043d \u0441 \u0430\u043d\u0438\u043c\u0430\u0446\u0438\u044f\u043c\u0438 \u0438 \u0438\u043a\u043e\u043d\u043a\u0430\u043c\u0438.",
+    "content": "Mark: \u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c unit, API integration \u0438 browser/e2e-\u0442\u0435\u0441\u0442\u044b.",
     "source": "plan-input"
   },
-  "id": "al-20260819-b01a12",
+  "id": "al-20260819-68614f",
   "metrics": {
     "mode": "CAREFUL",
-    "plan_recorded_at": "2026-08-19T00:57:47.967374+00:00",
-    "task_type": "UI architecture and state management"
+    "plan_recorded_at": "2026-08-19T02:45:19.725792+00:00",
+    "task_type": "Test infrastructure and regression coverage"
   },
   "mode": "CAREFUL",
   "plan": {
-    "approach": "\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u044c \u043e\u0431\u0449\u0438\u0439 React provider \u0438 viewport \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0439, \u0442\u0438\u043f\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0435 severity-\u0441\u043e\u0431\u044b\u0442\u0438\u044f, \u043c\u0430\u043a\u0441\u0438\u043c\u0443\u043c \u0442\u0440\u0438 \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u044f, pause/resume \u0442\u0430\u0439\u043c\u0435\u0440\u043e\u0432 \u0438 panel-aware \u0440\u0430\u0437\u043c\u0435\u0449\u0435\u043d\u0438\u0435. \u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0447\u0435\u0440\u0435\u0437 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u044b\u0439 versioned adapter \u0441 defaults \u0438 fallback, \u0430 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044e\u0449\u0438\u0435 Vault-\u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438 \u043c\u0438\u0433\u0440\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u043f\u043e \u043e\u0434\u043d\u043e\u0439 \u0431\u0435\u0437 \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f API \u0438\u043b\u0438 \u0434\u0430\u043d\u043d\u044b\u0445.",
-    "at": "2026-08-19T00:57:47.967374+00:00",
+    "approach": "\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0442\u043e\u043b\u044c\u043a\u043e Vitest \u0438 Playwright \u043a\u0430\u043a dev tooling; \u0430\u043b\u0438\u0430\u0441 server-only \u0438 \u043a\u043e\u0440\u043d\u044f \u043f\u0440\u043e\u0435\u043a\u0442\u0430; fixture \u0447\u0435\u0440\u0435\u0437 mkdtemp \u0441 \u043f\u0440\u043e\u0432\u0435\u0440\u0435\u043d\u043d\u044b\u043c \u043f\u0440\u0435\u0444\u0438\u043a\u0441\u043e\u043c, \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u044b\u043c ARCHEION_VAULT_DIR \u0438 \u043e\u0442\u043a\u043b\u044e\u0447\u0451\u043d\u043d\u044b\u043c DATABASE_URL; \u043f\u043e\u0441\u043b\u0435\u0434\u043e\u0432\u0430\u0442\u0435\u043b\u044c\u043d\u044b\u0435 \u0444\u0430\u0439\u043b\u043e\u0432\u044b\u0435 suites; \u043f\u0440\u044f\u043c\u044b\u0435 \u0432\u044b\u0437\u043e\u0432\u044b Route Handlers \u0447\u0435\u0440\u0435\u0437 Web Request/Response; \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0439 Next server \u043d\u0430 \u043d\u0435\u0440\u0430\u0431\u043e\u0447\u0435\u043c \u043f\u043e\u0440\u0442\u0443 \u0434\u043b\u044f browser/e2e. \u041f\u043e\u043a\u0440\u044b\u0432\u0430\u0442\u044c \u043f\u043e \u043f\u043e\u0440\u044f\u0434\u043a\u0443 path safety, CRUD/limits, rename-move-delete, search/cache, graph links, API status/body \u0438 \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c\u0441\u043a\u0438\u0439 e2e-\u043f\u0443\u0442\u044c.",
+    "at": "2026-08-19T02:45:19.725792+00:00",
     "mode_recommendation": {
       "mode": "CAREFUL",
       "override_reason": null,
-      "reason": "risk signal: secret or cryptography",
+      "reason": "risk signal: infrastructure, secret or cryptography",
       "requested": "AUTO"
     },
-    "primary_risk": "\u0410\u0441\u0438\u043d\u0445\u0440\u043e\u043d\u043d\u044b\u0435 \u0442\u0430\u0439\u043c\u0435\u0440\u044b \u0438\u043b\u0438 \u0434\u0443\u0431\u043b\u0438\u0440\u0443\u044e\u0449\u0438\u0435 \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u044b \u0441\u043e\u0431\u044b\u0442\u0438\u0439 \u043c\u043e\u0433\u0443\u0442 \u0443\u0434\u0430\u043b\u0438\u0442\u044c \u043d\u0435 \u0442\u043e \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435, \u0430 fixed viewport \u043c\u043e\u0436\u0435\u0442 \u043f\u0435\u0440\u0435\u043a\u0440\u044b\u0442\u044c Vault \u043f\u0440\u0438 \u0440\u0430\u0437\u043d\u044b\u0445 dock-\u043f\u043e\u0437\u0438\u0446\u0438\u044f\u0445; localStorage \u043d\u0435\u043b\u044c\u0437\u044f \u0447\u0438\u0442\u0430\u0442\u044c \u0442\u0430\u043a, \u0447\u0442\u043e\u0431\u044b \u0432\u044b\u0437\u0432\u0430\u0442\u044c hydration mismatch.",
-    "rejected_alternative": "\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0442\u043e\u043b\u044c\u043a\u043e \u0442\u0430\u0439\u043c\u0435\u0440 \u0438 \u043a\u0440\u0435\u0441\u0442\u0438\u043a \u043a \u0442\u0435\u043a\u0443\u0449\u0435\u043c\u0443 fixed message \u0432\u043d\u0443\u0442\u0440\u0438 VaultWorkspace. \u041e\u0442\u043a\u043b\u043e\u043d\u0435\u043d\u043e: \u043f\u043e\u0434\u0445\u043e\u0434 \u043d\u0435 \u0440\u0435\u0448\u0430\u0435\u0442 \u0442\u0438\u043f\u044b \u0441\u043e\u0431\u044b\u0442\u0438\u0439, \u043e\u0447\u0435\u0440\u0435\u0434\u044c, \u0434\u0443\u0431\u043b\u0438, \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u043e\u0441\u0442\u044c, \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0438 \u0431\u0443\u0434\u0443\u0449\u0438\u0445 \u043f\u043e\u0442\u0440\u0435\u0431\u0438\u0442\u0435\u043b\u0435\u0439.",
-    "rollback_mitigation": "Mark: \u0435\u0441\u043b\u0438 \u043d\u043e\u0432\u0430\u044f \u0441\u0438\u0441\u0442\u0435\u043c\u0430 \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0439 \u0438\u043b\u0438 \u043d\u0430\u0441\u0442\u0440\u043e\u0435\u043a \u043b\u043e\u043c\u0430\u0435\u0442 Vault, \u0442\u043e \u043f\u0440\u043e\u0441\u0442\u043e \u043d\u0430\u0439\u0434\u0435\u0442 \u043f\u0440\u043e\u0431\u043b\u0435\u043c\u0443 \u0438 \u0430\u0434\u0430\u043f\u0442\u0438\u0440\u0443\u0435\u043c \u0432\u0441\u0435 \u0447\u0442\u043e\u0431\u044b \u0432\u0441\u0435 \u0445\u043e\u0440\u043e\u0448\u043e \u0440\u0430\u0431\u043e\u0442\u0430\u043b\u043e.",
-    "summary": "\u0412\u0432\u0435\u0441\u0442\u0438 \u0433\u043b\u043e\u0431\u0430\u043b\u044c\u043d\u0443\u044e \u0442\u0438\u043f\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u0443\u044e \u0441\u0438\u0441\u0442\u0435\u043c\u0443 \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0439 \u0441 \u043e\u0447\u0435\u0440\u0435\u0434\u044c\u044e, \u0434\u0435\u0434\u0443\u043f\u043b\u0438\u043a\u0430\u0446\u0438\u0435\u0439, \u0443\u043f\u0440\u0430\u0432\u043b\u044f\u0435\u043c\u044b\u043c\u0438 \u0442\u0430\u0439\u043c\u0435\u0440\u0430\u043c\u0438, \u0437\u0430\u043a\u0440\u044b\u0442\u0438\u0435\u043c, \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u043e\u0439 \u0441\u0435\u043c\u0430\u043d\u0442\u0438\u043a\u043e\u0439 \u0438 \u0441\u0434\u0435\u0440\u0436\u0430\u043d\u043d\u043e\u0439 motion-\u0430\u043d\u0438\u043c\u0430\u0446\u0438\u0435\u0439; \u0437\u0430\u043c\u0435\u043d\u0438\u0442\u044c \u0442\u0435\u043a\u0443\u0449\u0438\u0439 message \u0432 Vault; \u0434\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0439 \u0434\u0438\u0430\u043b\u043e\u0433 \u043d\u0430\u0441\u0442\u0440\u043e\u0435\u043a \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f \u0438 \u0432\u0435\u0440\u0441\u0438\u043e\u043d\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u043e\u0435 local-first \u0445\u0440\u0430\u043d\u0435\u043d\u0438\u0435 \u043d\u0430\u0441\u0442\u0440\u043e\u0435\u043a \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0439 \u0438 \u0432\u043d\u0435\u0448\u043d\u0435\u0433\u043e \u0432\u0438\u0434\u0430; \u043d\u0435 \u0437\u0430\u0442\u0440\u0430\u0433\u0438\u0432\u0430\u0442\u044c AI, auth, \u043e\u0431\u0443\u0447\u0435\u043d\u0438\u0435 \u0438 cloud sync.",
-    "verification_strategy": "\u041f\u0440\u043e\u0439\u0442\u0438 npm run typecheck, npm run lint, git diff --check \u0438 npm run build -- --webpack; \u0434\u043e\u0431\u0430\u0432\u0438\u0442\u044c browser regression \u0434\u043b\u044f auto-dismiss, pause/resume, \u0440\u0443\u0447\u043d\u043e\u0433\u043e \u0437\u0430\u043a\u0440\u044b\u0442\u0438\u044f, \u0434\u0435\u0434\u0443\u043f\u043b\u0438\u043a\u0430\u0446\u0438\u0438, severity semantics, reduced motion \u0438 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u044f \u043d\u0430\u0441\u0442\u0440\u043e\u0435\u043a; \u043f\u043e\u0432\u0442\u043e\u0440\u043d\u043e \u043f\u0440\u043e\u0433\u043d\u0430\u0442\u044c \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044e\u0449\u0438\u0435 layout, docking, Atlas \u0438 AliveIcon browser checks; \u0437\u0430\u0442\u0435\u043c Mark \u0432\u0440\u0443\u0447\u043d\u0443\u044e \u043f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u0442 \u043d\u0435\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0439 \u0438 \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u043d\u0430 /vault."
+    "primary_risk": "\u041e\u0448\u0438\u0431\u043e\u0447\u043d\u043e \u043d\u0430\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043d\u044b\u0439 \u0442\u0435\u0441\u0442 \u043c\u043e\u0436\u0435\u0442 \u0437\u0430\u0442\u0440\u043e\u043d\u0443\u0442\u044c \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0439 Vault \u0438\u043b\u0438 \u0411\u0414; shared mutation queue/search cache \u0438 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0439 Next server \u043c\u043e\u0433\u0443\u0442 \u0441\u043e\u0437\u0434\u0430\u0432\u0430\u0442\u044c \u0444\u043b\u0430\u043a\u0438; \u043d\u043e\u0432\u044b\u0435 test dependencies \u043c\u043e\u0433\u0443\u0442 \u043f\u043e\u0432\u043b\u0438\u044f\u0442\u044c \u043d\u0430 install, dev \u0438\u043b\u0438 build.",
+    "rejected_alternative": "\u041e\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044e\u0449\u0438\u0435 \u0440\u0443\u0447\u043d\u044b\u0435 browser harnesses \u0438 \u0440\u0430\u0437\u043e\u0432\u044b\u0435 smoke-\u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438. \u041e\u0442\u043a\u043b\u043e\u043d\u0435\u043d\u043e: \u043e\u043d\u0438 \u043d\u0435 \u0437\u0430\u043f\u0443\u0441\u043a\u0430\u044e\u0442\u0441\u044f \u0441\u0442\u0430\u043d\u0434\u0430\u0440\u0442\u043d\u044b\u043c runner, \u043d\u0435 \u0434\u0430\u044e\u0442 \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u0435\u043c\u043e\u0439 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438 \u043a\u043e\u0434\u0430 \u0438 \u043d\u0435 \u0437\u0430\u0449\u0438\u0449\u0430\u044e\u0442 Route Handler \u0438 \u0444\u0430\u0439\u043b\u043e\u0432\u044b\u0435 \u043a\u043e\u043d\u0442\u0440\u0430\u043a\u0442\u044b \u0432 CI.",
+    "rollback_mitigation": "Mark: \u0431\u0443\u0434\u0435\u043c \u0434\u043e\u0431\u0438\u0432\u0430\u0442\u044c \u0434\u043e \u043a\u043e\u043d\u0446\u0430. \u041d\u043e \u0435\u0441\u043b\u0438 \u0432\u0434\u0440\u0443\u0433 \u0447\u0442\u043e-\u0442\u043e \u043f\u043e\u0439\u0434\u0451\u0442 \u043d\u0435 \u0442\u0430\u043a, \u043e\u0442\u043a\u0430\u0442\u0438\u043c \u043d\u0430 \u043f\u0440\u0435\u0434\u044b\u0434\u0443\u0449\u0438\u0439 \u043a\u043e\u043c\u043c\u0438\u0442.",
+    "summary": "\u0412\u0432\u0435\u0441\u0442\u0438 \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u0435\u043c\u044b\u0439 \u0442\u0435\u0441\u0442\u043e\u0432\u044b\u0439 \u0444\u0443\u043d\u0434\u0430\u043c\u0435\u043d\u0442 Vault: Vitest \u0434\u043b\u044f unit \u0438 Route Handler contracts, \u0438\u0437\u043e\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0439 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u044b\u0439 Vault fixture, \u0437\u0430\u0442\u0435\u043c Playwright real-server e2e \u043d\u0430 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u043e\u043c \u043f\u043e\u0440\u0442\u0443. \u0420\u0435\u0430\u043b\u0438\u0437\u043e\u0432\u044b\u0432\u0430\u0442\u044c \u0432\u0435\u0440\u0442\u0438\u043a\u0430\u043b\u044c\u043d\u044b\u043c\u0438 RED\u2192GREEN-\u0441\u0440\u0435\u0437\u0430\u043c\u0438, \u043d\u0430\u0447\u0438\u043d\u0430\u044f \u0441 \u0437\u0430\u043f\u0440\u0435\u0442\u0430 path traversal.",
+    "verification_strategy": "\u0414\u043b\u044f \u043a\u0430\u0436\u0434\u043e\u0433\u043e \u043f\u043e\u0432\u0435\u0434\u0435\u043d\u0438\u044f \u0441\u043d\u0430\u0447\u0430\u043b\u0430 \u0437\u0430\u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u0442\u044c RED, \u0437\u0430\u0442\u0435\u043c \u043c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u044b\u0439 GREEN \u0438 refactor; \u043f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c, \u0447\u0442\u043e intentional break \u0432\u0430\u043b\u0438\u0442 \u0441\u043e\u043e\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0443\u044e\u0449\u0438\u0439 \u0442\u0435\u0441\u0442; \u0432\u0441\u0435 \u0442\u0435\u0441\u0442\u044b \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u044e\u0442 \u0442\u043e\u043b\u044c\u043a\u043e \u0432\u0430\u043b\u0438\u0434\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0439 temp prefix \u0438 \u0432\u043e\u0441\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u044e\u0442 env; \u043f\u0440\u043e\u0439\u0442\u0438 npm run test:unit, test:api, test:e2e, test:all, typecheck, lint, build \u0438 git diff --check."
   },
   "quality": [
     {
@@ -190,448 +145,14 @@
       "status": "passed",
       "workspace_fingerprint": {
         "algorithm": "sha256",
-        "content_digest": "sha256:f72ac6373cda0aeb288b1ad8c5ca517896f65c7dbee4e879cbf4322ab7e2e3cd",
-        "digest": "sha256:f72ac6373cda0aeb288b1ad8c5ca517896f65c7dbee4e879cbf4322ab7e2e3cd",
-        "files": 91,
+        "content_digest": "sha256:b86e75865f0cf52dcf863cc5589a1a62182b2d5fdc0b16e762e202db7596c78e",
+        "digest": "sha256:b86e75865f0cf52dcf863cc5589a1a62182b2d5fdc0b16e762e202db7596c78e",
+        "files": 101,
         "format_version": 3,
-        "git_state_digest": "sha256:7db1b8fbc0eb57c2948992bcca0dc1b8df0847360f7f71c47e247f446a65e7b5",
-        "head": "a7d14279508722f78ece7cd83db92c205b8748b4",
+        "git_state_digest": "sha256:65f7b5e004a58a1513d9398df0db19c3ffdb2f89131848d8ddd650b552520b48",
+        "head": "4b33504eed028ccad11f2359315b9d2dfc594919",
         "source": "git-materialized"
       }
-    },
-    {
-      "advisories": [
-        "No project-specific formatter, linter, type checker, test runner, or dependency scanner is configured yet.",
-        "DRY, KISS, YAGNI, SOLID, and architecture findings require concrete diff evidence and engineer review."
-      ],
-      "checks": [
-        {
-          "name": "python-syntax",
-          "status": "passed"
-        },
-        {
-          "detail": "security rule is not approved for this task",
-          "name": "secret-baseline",
-          "status": "not-run"
-        },
-        {
-          "name": "git-baseline-diff-check",
-          "status": "passed"
-        },
-        {
-          "name": "git-diff-check",
-          "status": "passed"
-        },
-        {
-          "name": "git-cached-diff-check",
-          "status": "passed"
-        },
-        {
-          "name": "workspace-stability",
-          "status": "passed"
-        }
-      ],
-      "findings": [],
-      "status": "passed",
-      "workspace_fingerprint": {
-        "algorithm": "sha256",
-        "content_digest": "sha256:55d851f62105847df768690555262d607b64a3d19d4232e87c31fac49beb7206",
-        "digest": "sha256:55d851f62105847df768690555262d607b64a3d19d4232e87c31fac49beb7206",
-        "files": 91,
-        "format_version": 3,
-        "git_state_digest": "sha256:687f95d49e90ffce8d4d187abcc9440901f348ed1f0840e28d8d41157b53b646",
-        "head": "a7d14279508722f78ece7cd83db92c205b8748b4",
-        "source": "git-materialized"
-      }
-    },
-    {
-      "advisories": [
-        "No project-specific formatter, linter, type checker, test runner, or dependency scanner is configured yet.",
-        "DRY, KISS, YAGNI, SOLID, and architecture findings require concrete diff evidence and engineer review."
-      ],
-      "checks": [
-        {
-          "name": "python-syntax",
-          "status": "passed"
-        },
-        {
-          "detail": "security rule is not approved for this task",
-          "name": "secret-baseline",
-          "status": "not-run"
-        },
-        {
-          "name": "git-baseline-diff-check",
-          "status": "passed"
-        },
-        {
-          "name": "git-diff-check",
-          "status": "passed"
-        },
-        {
-          "name": "git-cached-diff-check",
-          "status": "passed"
-        },
-        {
-          "name": "workspace-stability",
-          "status": "passed"
-        }
-      ],
-      "findings": [],
-      "status": "passed",
-      "workspace_fingerprint": {
-        "algorithm": "sha256",
-        "content_digest": "sha256:83b0703fe909b79d9854bfacc9f983a6a4955debc2bbc78086a923b02f0bf130",
-        "digest": "sha256:83b0703fe909b79d9854bfacc9f983a6a4955debc2bbc78086a923b02f0bf130",
-        "files": 91,
-        "format_version": 3,
-        "git_state_digest": "sha256:b5df31467fb562e6e964319dfef83ae500a2896b2c94a102d3f69e4c1f1990dc",
-        "head": "a7d14279508722f78ece7cd83db92c205b8748b4",
-        "source": "git-materialized"
-      }
-    },
-    {
-      "advisories": [
-        "No project-specific formatter, linter, type checker, test runner, or dependency scanner is configured yet.",
-        "DRY, KISS, YAGNI, SOLID, and architecture findings require concrete diff evidence and engineer review."
-      ],
-      "checks": [
-        {
-          "name": "python-syntax",
-          "status": "passed"
-        },
-        {
-          "detail": "security rule is not approved for this task",
-          "name": "secret-baseline",
-          "status": "not-run"
-        },
-        {
-          "name": "git-baseline-diff-check",
-          "status": "passed"
-        },
-        {
-          "name": "git-diff-check",
-          "status": "passed"
-        },
-        {
-          "name": "git-cached-diff-check",
-          "status": "passed"
-        },
-        {
-          "name": "workspace-stability",
-          "status": "passed"
-        }
-      ],
-      "findings": [],
-      "status": "passed",
-      "workspace_fingerprint": {
-        "algorithm": "sha256",
-        "content_digest": "sha256:420f6490000e35715f7c807f17e894d407e73284e55e6a728dfc205e373e6906",
-        "digest": "sha256:420f6490000e35715f7c807f17e894d407e73284e55e6a728dfc205e373e6906",
-        "files": 91,
-        "format_version": 3,
-        "git_state_digest": "sha256:b5df31467fb562e6e964319dfef83ae500a2896b2c94a102d3f69e4c1f1990dc",
-        "head": "a7d14279508722f78ece7cd83db92c205b8748b4",
-        "source": "git-materialized"
-      }
-    }
-  ],
-  "revisions": [
-    {
-      "at": "2026-08-19T01:56:08.252694+00:00",
-      "previous_state": "quality_checked",
-      "quality": [
-        {
-          "advisories": [
-            "No project-specific formatter, linter, type checker, test runner, or dependency scanner is configured yet.",
-            "DRY, KISS, YAGNI, SOLID, and architecture findings require concrete diff evidence and engineer review."
-          ],
-          "checks": [
-            {
-              "name": "python-syntax",
-              "status": "passed"
-            },
-            {
-              "detail": "security rule is not approved for this task",
-              "name": "secret-baseline",
-              "status": "not-run"
-            },
-            {
-              "name": "git-baseline-diff-check",
-              "status": "passed"
-            },
-            {
-              "name": "git-diff-check",
-              "status": "passed"
-            },
-            {
-              "name": "git-cached-diff-check",
-              "status": "passed"
-            },
-            {
-              "name": "workspace-stability",
-              "status": "passed"
-            }
-          ],
-          "findings": [],
-          "status": "passed",
-          "workspace_fingerprint": {
-            "algorithm": "sha256",
-            "content_digest": "sha256:f72ac6373cda0aeb288b1ad8c5ca517896f65c7dbee4e879cbf4322ab7e2e3cd",
-            "digest": "sha256:f72ac6373cda0aeb288b1ad8c5ca517896f65c7dbee4e879cbf4322ab7e2e3cd",
-            "files": 91,
-            "format_version": 3,
-            "git_state_digest": "sha256:7db1b8fbc0eb57c2948992bcca0dc1b8df0847360f7f71c47e247f446a65e7b5",
-            "head": "a7d14279508722f78ece7cd83db92c205b8748b4",
-            "source": "git-materialized"
-          }
-        }
-      ],
-      "reason": "\u0420\u0443\u0447\u043d\u0430\u044f \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 Mark: \u044d\u043a\u0440\u0430\u043d \u043d\u0430\u0441\u0442\u0440\u043e\u0435\u043a \u0432\u0438\u0437\u0443\u0430\u043b\u044c\u043d\u043e \u0441\u043b\u0438\u0448\u043a\u043e\u043c \u0440\u0430\u0441\u0442\u044f\u043d\u0443\u0442, \u043f\u0435\u0440\u0435\u0433\u0440\u0443\u0436\u0435\u043d \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u044e\u0449\u0438\u043c\u0438\u0441\u044f \u043f\u0435\u0440\u0435\u043a\u043b\u044e\u0447\u0430\u0442\u0435\u043b\u044f\u043c\u0438 \u0438 \u0442\u044f\u0436\u0451\u043b\u044b\u043c\u0438 \u0440\u0430\u043c\u043a\u0430\u043c\u0438; \u043d\u0443\u0436\u043d\u0430 \u0431\u043e\u043b\u0435\u0435 \u043a\u043e\u043c\u043f\u0430\u043a\u0442\u043d\u0430\u044f \u0438 \u044f\u0441\u043d\u0430\u044f \u0438\u0435\u0440\u0430\u0440\u0445\u0438\u044f.",
-      "target": "implement",
-      "verification": null
-    },
-    {
-      "at": "2026-08-19T02:16:50.569549+00:00",
-      "previous_state": "quality_checked",
-      "quality": [
-        {
-          "advisories": [
-            "No project-specific formatter, linter, type checker, test runner, or dependency scanner is configured yet.",
-            "DRY, KISS, YAGNI, SOLID, and architecture findings require concrete diff evidence and engineer review."
-          ],
-          "checks": [
-            {
-              "name": "python-syntax",
-              "status": "passed"
-            },
-            {
-              "detail": "security rule is not approved for this task",
-              "name": "secret-baseline",
-              "status": "not-run"
-            },
-            {
-              "name": "git-baseline-diff-check",
-              "status": "passed"
-            },
-            {
-              "name": "git-diff-check",
-              "status": "passed"
-            },
-            {
-              "name": "git-cached-diff-check",
-              "status": "passed"
-            },
-            {
-              "name": "workspace-stability",
-              "status": "passed"
-            }
-          ],
-          "findings": [],
-          "status": "passed",
-          "workspace_fingerprint": {
-            "algorithm": "sha256",
-            "content_digest": "sha256:f72ac6373cda0aeb288b1ad8c5ca517896f65c7dbee4e879cbf4322ab7e2e3cd",
-            "digest": "sha256:f72ac6373cda0aeb288b1ad8c5ca517896f65c7dbee4e879cbf4322ab7e2e3cd",
-            "files": 91,
-            "format_version": 3,
-            "git_state_digest": "sha256:7db1b8fbc0eb57c2948992bcca0dc1b8df0847360f7f71c47e247f446a65e7b5",
-            "head": "a7d14279508722f78ece7cd83db92c205b8748b4",
-            "source": "git-materialized"
-          }
-        },
-        {
-          "advisories": [
-            "No project-specific formatter, linter, type checker, test runner, or dependency scanner is configured yet.",
-            "DRY, KISS, YAGNI, SOLID, and architecture findings require concrete diff evidence and engineer review."
-          ],
-          "checks": [
-            {
-              "name": "python-syntax",
-              "status": "passed"
-            },
-            {
-              "detail": "security rule is not approved for this task",
-              "name": "secret-baseline",
-              "status": "not-run"
-            },
-            {
-              "name": "git-baseline-diff-check",
-              "status": "passed"
-            },
-            {
-              "name": "git-diff-check",
-              "status": "passed"
-            },
-            {
-              "name": "git-cached-diff-check",
-              "status": "passed"
-            },
-            {
-              "name": "workspace-stability",
-              "status": "passed"
-            }
-          ],
-          "findings": [],
-          "status": "passed",
-          "workspace_fingerprint": {
-            "algorithm": "sha256",
-            "content_digest": "sha256:55d851f62105847df768690555262d607b64a3d19d4232e87c31fac49beb7206",
-            "digest": "sha256:55d851f62105847df768690555262d607b64a3d19d4232e87c31fac49beb7206",
-            "files": 91,
-            "format_version": 3,
-            "git_state_digest": "sha256:687f95d49e90ffce8d4d187abcc9440901f348ed1f0840e28d8d41157b53b646",
-            "head": "a7d14279508722f78ece7cd83db92c205b8748b4",
-            "source": "git-materialized"
-          }
-        }
-      ],
-      "reason": "Mark \u0434\u043e\u0431\u0430\u0432\u0438\u043b \u0431\u0443\u0434\u0443\u0449\u0438\u0439 \u044d\u0442\u0430\u043f \u0438\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u0439 \u0432 \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u043e\u0432\u044b\u0439 roadmap: Google Calendar, GitHub, \u0440\u0430\u0441\u0448\u0438\u0440\u044f\u0435\u043c\u044b\u0435 \u043a\u043e\u043d\u043d\u0435\u043a\u0442\u043e\u0440\u044b \u0438 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u044b\u0439 Telegram-\u043f\u043e\u0442\u043e\u043a; \u0442\u0435\u043a\u0443\u0449\u0438\u0439 scope \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0439 \u0438 \u043d\u0430\u0441\u0442\u0440\u043e\u0435\u043a \u043d\u0435 \u043c\u0435\u043d\u044f\u0435\u0442\u0441\u044f.",
-      "target": "implement",
-      "verification": null
-    },
-    {
-      "at": "2026-08-19T02:19:04.372526+00:00",
-      "previous_state": "quality_checked",
-      "quality": [
-        {
-          "advisories": [
-            "No project-specific formatter, linter, type checker, test runner, or dependency scanner is configured yet.",
-            "DRY, KISS, YAGNI, SOLID, and architecture findings require concrete diff evidence and engineer review."
-          ],
-          "checks": [
-            {
-              "name": "python-syntax",
-              "status": "passed"
-            },
-            {
-              "detail": "security rule is not approved for this task",
-              "name": "secret-baseline",
-              "status": "not-run"
-            },
-            {
-              "name": "git-baseline-diff-check",
-              "status": "passed"
-            },
-            {
-              "name": "git-diff-check",
-              "status": "passed"
-            },
-            {
-              "name": "git-cached-diff-check",
-              "status": "passed"
-            },
-            {
-              "name": "workspace-stability",
-              "status": "passed"
-            }
-          ],
-          "findings": [],
-          "status": "passed",
-          "workspace_fingerprint": {
-            "algorithm": "sha256",
-            "content_digest": "sha256:f72ac6373cda0aeb288b1ad8c5ca517896f65c7dbee4e879cbf4322ab7e2e3cd",
-            "digest": "sha256:f72ac6373cda0aeb288b1ad8c5ca517896f65c7dbee4e879cbf4322ab7e2e3cd",
-            "files": 91,
-            "format_version": 3,
-            "git_state_digest": "sha256:7db1b8fbc0eb57c2948992bcca0dc1b8df0847360f7f71c47e247f446a65e7b5",
-            "head": "a7d14279508722f78ece7cd83db92c205b8748b4",
-            "source": "git-materialized"
-          }
-        },
-        {
-          "advisories": [
-            "No project-specific formatter, linter, type checker, test runner, or dependency scanner is configured yet.",
-            "DRY, KISS, YAGNI, SOLID, and architecture findings require concrete diff evidence and engineer review."
-          ],
-          "checks": [
-            {
-              "name": "python-syntax",
-              "status": "passed"
-            },
-            {
-              "detail": "security rule is not approved for this task",
-              "name": "secret-baseline",
-              "status": "not-run"
-            },
-            {
-              "name": "git-baseline-diff-check",
-              "status": "passed"
-            },
-            {
-              "name": "git-diff-check",
-              "status": "passed"
-            },
-            {
-              "name": "git-cached-diff-check",
-              "status": "passed"
-            },
-            {
-              "name": "workspace-stability",
-              "status": "passed"
-            }
-          ],
-          "findings": [],
-          "status": "passed",
-          "workspace_fingerprint": {
-            "algorithm": "sha256",
-            "content_digest": "sha256:55d851f62105847df768690555262d607b64a3d19d4232e87c31fac49beb7206",
-            "digest": "sha256:55d851f62105847df768690555262d607b64a3d19d4232e87c31fac49beb7206",
-            "files": 91,
-            "format_version": 3,
-            "git_state_digest": "sha256:687f95d49e90ffce8d4d187abcc9440901f348ed1f0840e28d8d41157b53b646",
-            "head": "a7d14279508722f78ece7cd83db92c205b8748b4",
-            "source": "git-materialized"
-          }
-        },
-        {
-          "advisories": [
-            "No project-specific formatter, linter, type checker, test runner, or dependency scanner is configured yet.",
-            "DRY, KISS, YAGNI, SOLID, and architecture findings require concrete diff evidence and engineer review."
-          ],
-          "checks": [
-            {
-              "name": "python-syntax",
-              "status": "passed"
-            },
-            {
-              "detail": "security rule is not approved for this task",
-              "name": "secret-baseline",
-              "status": "not-run"
-            },
-            {
-              "name": "git-baseline-diff-check",
-              "status": "passed"
-            },
-            {
-              "name": "git-diff-check",
-              "status": "passed"
-            },
-            {
-              "name": "git-cached-diff-check",
-              "status": "passed"
-            },
-            {
-              "name": "workspace-stability",
-              "status": "passed"
-            }
-          ],
-          "findings": [],
-          "status": "passed",
-          "workspace_fingerprint": {
-            "algorithm": "sha256",
-            "content_digest": "sha256:83b0703fe909b79d9854bfacc9f983a6a4955debc2bbc78086a923b02f0bf130",
-            "digest": "sha256:83b0703fe909b79d9854bfacc9f983a6a4955debc2bbc78086a923b02f0bf130",
-            "files": 91,
-            "format_version": 3,
-            "git_state_digest": "sha256:b5df31467fb562e6e964319dfef83ae500a2896b2c94a102d3f69e4c1f1990dc",
-            "head": "a7d14279508722f78ece7cd83db92c205b8748b4",
-            "source": "git-materialized"
-          }
-        }
-      ],
-      "reason": "\u0420\u0443\u0447\u043d\u0430\u044f \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 Mark: \u0431\u043b\u043e\u043a \u00ab\u0422\u0438\u043f\u044b \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0439\u00bb \u0440\u0430\u0441\u043a\u0440\u044b\u0432\u0430\u0435\u0442\u0441\u044f \u0438 \u0437\u0430\u043a\u0440\u044b\u0432\u0430\u0435\u0442\u0441\u044f \u043c\u0433\u043d\u043e\u0432\u0435\u043d\u043d\u043e; \u043d\u0443\u0436\u043d\u0430 \u0431\u044b\u0441\u0442\u0440\u0430\u044f \u0434\u0432\u0443\u043d\u0430\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043d\u0430\u044f \u0430\u043d\u0438\u043c\u0430\u0446\u0438\u044f \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u044f \u0441 reduced-motion fallback.",
-      "target": "implement",
-      "verification": null
     }
   ],
   "ruleset": {
@@ -641,6 +162,6 @@
   },
   "schema_version": 2,
   "state": "quality_checked",
-  "task_type": "UI architecture and state management",
-  "title": "Settings and notification foundation"
+  "task_type": "Test infrastructure and regression coverage",
+  "title": "Vault test foundation"
 }
