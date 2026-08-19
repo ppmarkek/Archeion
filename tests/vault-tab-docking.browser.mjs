@@ -15,21 +15,28 @@ async function runVaultTabDockingRegression(tab) {
 
   const openTabs = tab.playwright.locator('nav[aria-label="Открытые файлы"] button[role="tab"]');
   assert.ok(await openTabs.count() >= 2, "Для docking-проверки нужны две открытые вкладки");
+  const canvasBody = tab.playwright.locator('section[aria-label="Рабочее полотно"] > div.row-start-3');
+  const panes = tab.playwright.locator("section[data-workspace-dock-slot]");
+  const originalPaneCount = await panes.count();
+
+  while (await panes.count() > 1) {
+    await tab.playwright.locator('button[aria-label^="Убрать панель "]').last().click();
+    await tab.playwright.waitForTimeout(180);
+  }
 
   const inactiveTab = tab.playwright.locator(
     'nav[aria-label="Открытые файлы"] button[role="tab"][aria-selected="false"]',
   ).first();
-  const centerPane = tab.playwright.locator("#workspace-pane-center");
-  const [tabRect, centerRect] = await Promise.all([readRect(inactiveTab), readRect(centerPane)]);
-  assert.ok(tabRect && centerRect, "Вкладка и центральная область должны быть видимы");
+  const [tabRect, canvasRect] = await Promise.all([readRect(inactiveTab), readRect(canvasBody)]);
+  assert.ok(tabRect && canvasRect, "Вкладка и рабочее полотно должны быть видимы");
 
   const tabStart = {
     x: tabRect.x + Math.min(tabRect.width / 2, 72),
     y: tabRect.y + tabRect.height / 2,
   };
   const dockEnd = {
-    x: centerRect.x + Math.max(54, centerRect.width * 0.18),
-    y: centerRect.y + Math.min(160, centerRect.height * 0.3),
+    x: canvasRect.x + 40,
+    y: canvasRect.y + canvasRect.height / 2,
   };
   await tab.cua.drag({
     path: [
@@ -41,16 +48,18 @@ async function runVaultTabDockingRegression(tab) {
   });
   await tab.playwright.waitForTimeout(260);
 
-  const leftPane = tab.playwright.locator('#workspace-pane-left[data-workspace-dock-slot="left"]');
+  const leftPane = tab.playwright.locator('#workspace-pane-topLeft[data-workspace-dock-slot="topLeft"]');
+  const rightPane = tab.playwright.locator('#workspace-pane-topRight[data-workspace-dock-slot="topRight"]');
   const separator = tab.playwright.locator(
     '[role="separator"][aria-label="Изменить ширину областей документов"]',
   );
   assert.equal(await leftPane.count(), 1, "Drop в левую часть должен создать соседнюю область файла");
+  assert.equal(await rightPane.count(), 1, "Вторая вкладка должна остаться справа");
   assert.equal(await separator.count(), 1, "Между областями должен появиться доступный ресайзер");
 
   const [leftBefore, centerBefore, separatorRect] = await Promise.all([
     readRect(leftPane),
-    readRect(centerPane),
+    readRect(rightPane),
     readRect(separator),
   ]);
   assert.ok(leftBefore && centerBefore && separatorRect, "Обе области и ресайзер должны быть видимы");
@@ -68,23 +77,54 @@ async function runVaultTabDockingRegression(tab) {
   });
   await tab.playwright.waitForTimeout(180);
 
-  const [leftAfter, centerAfter] = await Promise.all([readRect(leftPane), readRect(centerPane)]);
+  const [leftAfter, centerAfter] = await Promise.all([readRect(leftPane), readRect(rightPane)]);
   assert.ok(leftAfter && centerAfter, "Области должны остаться видимыми после ресайза");
   assert.ok(
-    leftAfter.width > leftBefore.width + 32 && centerAfter.width < centerBefore.width - 32,
+    leftAfter.width > leftBefore.width + 8 && centerAfter.width < centerBefore.width - 8,
     "Перетаскивание разделителя должно менять ширину обеих областей",
   );
 
-  const closeLeft = tab.playwright.getByRole("button", { name: "Убрать панель слева" });
-  await closeLeft.click();
-  await tab.playwright.waitForTimeout(180);
-  assert.equal(await leftPane.count(), 0, "После закрытия split должна остаться одна область");
+  const leftHeader = leftPane.locator("header[data-workspace-pane-drag-handle]");
+  const leftHeaderRect = await readRect(leftHeader);
+  assert.ok(leftHeaderRect, "У панели должна быть перетаскиваемая верхушка");
+  await tab.cua.drag({
+    path: [
+      { x: leftHeaderRect.x + Math.min(100, leftHeaderRect.width / 2), y: leftHeaderRect.y + leftHeaderRect.height / 2 },
+      { x: canvasRect.x + canvasRect.width / 2, y: canvasRect.y + canvasRect.height * 0.65 },
+      { x: canvasRect.x + canvasRect.width / 2, y: canvasRect.y + canvasRect.height - 40 },
+    ],
+  });
+  await tab.playwright.waitForTimeout(260);
+  assert.equal(
+    await tab.playwright.getByRole("separator", { name: "Изменить высоту областей документов" }).count(),
+    1,
+    "Перетаскивание верхушки вниз должно перестроить области по вертикали",
+  );
+
+  const bottomPane = tab.playwright.locator('#workspace-pane-bottomLeft[data-workspace-dock-slot="bottomLeft"]');
+  const bottomHeaderRect = await readRect(bottomPane.locator("header[data-workspace-pane-drag-handle]"));
+  assert.ok(bottomHeaderRect, "Нижняя панель должна оставаться доступной для перетаскивания");
+  await tab.cua.drag({
+    path: [
+      { x: bottomHeaderRect.x + Math.min(100, bottomHeaderRect.width / 2), y: bottomHeaderRect.y + bottomHeaderRect.height / 2 },
+      { x: canvasRect.x + canvasRect.width * 0.35, y: canvasRect.y + canvasRect.height / 2 },
+      { x: canvasRect.x + 40, y: canvasRect.y + canvasRect.height / 2 },
+    ],
+  });
+  await tab.playwright.waitForTimeout(260);
+  assert.equal(await separator.count(), 1, "Панель должна возвращаться в горизонтальное размещение");
+
+  if (originalPaneCount === 1) {
+    await tab.playwright.locator('button[aria-label^="Убрать панель "]').last().click();
+    await tab.playwright.waitForTimeout(180);
+  }
 
   return {
     centerWidthAfter: centerAfter.width,
     centerWidthBefore: centerBefore.width,
     leftWidthAfter: leftAfter.width,
     leftWidthBefore: leftBefore.width,
+    paneCountRestored: await panes.count(),
   };
 }
 

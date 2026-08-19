@@ -1,0 +1,11 @@
+{
+  "category": "code-quality",
+  "created_at": "2026-08-19T00:25:53.288632+00:00",
+  "id": "baseline-code-quality-v1",
+  "rationale": "Rules require explicit engineer approval before enforcement.",
+  "scope": "project",
+  "source": "AnchorLoop baseline",
+  "status": "proposed",
+  "version": 1,
+  "wording": "Use meaningful names, comments that explain why, small coherent patches, and evidence-based DRY, KISS, YAGNI, and SOLID review."
+}

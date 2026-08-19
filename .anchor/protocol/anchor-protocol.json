@@ -1,0 +1,43 @@
+{
+  "approval_provenance": [
+    "audit",
+    "interactive-tty"
+  ],
+  "commands": [
+    "brief",
+    "plan",
+    "approve",
+    "revise",
+    "close",
+    "implement",
+    "precommit",
+    "review",
+    "verify",
+    "recall",
+    "outcome",
+    "report"
+  ],
+  "host_adapters": [
+    "portable-instructions",
+    "terminal",
+    "skills",
+    "slash-commands",
+    "hooks",
+    "mcp"
+  ],
+  "quality_evidence": {
+    "invalidates_on_change": true,
+    "workspace_fingerprint": "sha256 snapshot of the checked working tree"
+  },
+  "source_of_truth": "anchor CLI and .anchor state",
+  "states": [
+    "briefing",
+    "planned",
+    "approved",
+    "implementing",
+    "review_ready",
+    "quality_checked",
+    "verified"
+  ],
+  "version": 3
+}

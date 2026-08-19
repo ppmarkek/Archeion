@@ -1,0 +1,11 @@
+{
+  "category": "security",
+  "created_at": "2026-08-19T00:25:53.289190+00:00",
+  "id": "baseline-security-v1",
+  "rationale": "Rules require explicit engineer approval before enforcement.",
+  "scope": "project",
+  "source": "AnchorLoop baseline",
+  "status": "proposed",
+  "version": 1,
+  "wording": "Check changed code for secrets, trust-boundary mistakes, authorization regressions, injection risks, unsafe dynamic execution, and sensitive logging."
+}

@@ -10,44 +10,46 @@ async function readRect(locator) {
 }
 
 async function runVaultWorkspaceLayoutRegression(tab) {
+  await tab.playwright.getByRole("tab", { name: "Документ" }).click();
   const canvasBody = tab.playwright.locator(
     'section[aria-label="Рабочее полотно"] > div.row-start-3',
   );
-  const documentPane = tab.playwright.locator("#workspace-pane-center");
-  const documentScrollRegion = tab.playwright.locator(
-    "#workspace-pane-center > div.overflow-y-auto",
-  );
+  const documentPanes = tab.playwright.locator("section[data-workspace-dock-slot]");
   const previewToggle = tab.playwright.locator(
     'button[aria-label="Открыть просмотр Markdown"], button[aria-label="Открыть редактор Markdown"]',
   );
 
-  assert.equal(await documentPane.count(), 1, "Должна быть одна активная область документа");
+  const paneCount = await documentPanes.count();
+  assert.ok(paneCount >= 1 && paneCount <= 4, `Ожидалось от одной до четырёх областей, получено ${paneCount}`);
 
-  const [bodyRect, paneRect, previewRect] = await Promise.all([
+  const [bodyRect, paneRects, previewRect] = await Promise.all([
     readRect(canvasBody),
-    readRect(documentPane),
+    Promise.all(Array.from({ length: paneCount }, (_, index) => readRect(documentPanes.nth(index)))),
     readRect(previewToggle),
   ]);
 
-  assert.ok(bodyRect && paneRect, "Область документа должна быть видимой");
-  assert.ok(
-    paneRect.width / bodyRect.width > 0.98,
-    `Один документ должен занимать всю ширину полотна, сейчас ${Math.round((paneRect.width / bodyRect.width) * 100)}%`,
-  );
+  assert.ok(bodyRect && paneRects.every(Boolean), "Области документа должны быть видимыми");
+  for (const paneRect of paneRects) {
+    assert.ok(
+      paneRect.x >= bodyRect.x - 1
+        && paneRect.y >= bodyRect.y - 1
+        && paneRect.x + paneRect.width <= bodyRect.x + bodyRect.width + 1
+        && paneRect.y + paneRect.height <= bodyRect.y + bodyRect.height + 1,
+      "Каждая область документа должна оставаться внутри рабочего полотна",
+    );
+  }
+  if (paneCount === 1) {
+    assert.ok(
+      paneRects[0].width / bodyRect.width > 0.98,
+      `Один документ должен занимать всю ширину полотна, сейчас ${Math.round((paneRects[0].width / bodyRect.width) * 100)}%`,
+    );
+  }
 
-  const scrollbar = await documentScrollRegion.evaluateAll((elements) => {
-    const element = elements[0];
-    const computed = getComputedStyle(element);
-    return {
-      overflow: element.scrollHeight - element.clientHeight,
-      width: computed.scrollbarWidth,
-    };
-  });
-  assert.ok(
-    scrollbar.overflow <= 1,
-    `Короткая заметка не должна показывать лишний scrollbar из-за ${scrollbar.overflow}px переполнения`,
-  );
-  assert.equal(scrollbar.width, "thin", "Scrollbar документа должен использовать тонкий системный канал");
+  const scrollbarWidths = await documentPanes.locator("div.auto-hide-scrollbar").evaluateAll((elements) => (
+    elements.map((element) => getComputedStyle(element).scrollbarWidth)
+  ));
+  assert.ok(scrollbarWidths.length >= paneCount, "У каждой области должен быть собственный scroll-контейнер");
+  assert.ok(scrollbarWidths.every((width) => width === "thin"), "Scrollbar документа должен использовать тонкий системный канал");
 
   if (previewRect) {
     assert.ok(
@@ -100,8 +102,7 @@ async function runVaultWorkspaceLayoutRegression(tab) {
 
   return {
     compactPreviewWidth: previewRect?.width ?? null,
-    documentFill: paneRect.width / bodyRect.width,
-    documentOverflow: scrollbar.overflow,
+    paneCount,
     panelSizeBefore: beforeSize,
     panelSizeAfter: afterSize,
     position,

@@ -5,6 +5,10 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
+import { NotificationViewport } from "@/components/notifications/notification-viewport";
+import { useNotifications } from "@/components/notifications/notification-provider";
+import { SettingsDialog } from "@/components/settings/settings-dialog";
+import { useAppSettings } from "@/components/settings/settings-provider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +32,7 @@ import {
   AttachmentIcon,
   CheckIcon,
   CloseIcon,
+  CogIcon,
   DockBottomIcon,
   DockLeftIcon,
   DockRightIcon,
@@ -37,11 +42,8 @@ import {
   FolderOpenIcon,
   GraphIcon,
   LoadingIcon,
-  MonitorIcon,
-  MoonIcon,
   NoteIcon,
   PreviewIcon,
-  SunIcon,
 } from "@/components/vault/vault-icons";
 import type { AppIconProps } from "@/components/vault/vault-icons";
 import { cn, formatRussianCount } from "@/lib/utils";
@@ -65,7 +67,6 @@ type PanelPosition = "left" | "right" | "top" | "bottom";
 type PaneSlot = "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
 type DockTarget = PanelPosition;
 type PaneSplitAxis = "horizontal" | "vertical";
-type ThemePreference = "light" | "system" | "dark";
 type TextFormat = "bold" | "italic" | "heading" | "list" | "quote" | "link";
 type LibraryView = "tree" | "all";
 
@@ -185,12 +186,6 @@ function revealScrollbar(element: HTMLElement) {
   scrollbarTimers.set(element, timers);
 }
 
-const themeOptions = [
-  { value: "light", label: "Светлая тема", Icon: SunIcon },
-  { value: "system", label: "Как в системе", Icon: MonitorIcon },
-  { value: "dark", label: "Тёмная тема", Icon: MoonIcon },
-] as const;
-
 const dockOptions: Array<{
   value: PanelPosition;
   label: string;
@@ -217,6 +212,13 @@ const dockTargetLabels: Record<DockTarget, string> = {
 };
 
 const dockTargetSlots: Record<DockTarget, readonly [PaneSlot, PaneSlot]> = {
+  bottom: ["bottomLeft", "topLeft"],
+  left: ["topLeft", "topRight"],
+  right: ["topRight", "topLeft"],
+  top: ["topLeft", "bottomLeft"],
+};
+
+const dockEdgeSlots: Record<DockTarget, readonly PaneSlot[]> = {
   bottom: ["bottomLeft", "bottomRight"],
   left: ["topLeft", "bottomLeft"],
   right: ["topRight", "bottomRight"],
@@ -321,6 +323,20 @@ function visiblePaneCount(panes: PaneTabs) {
   return paneSlots.reduce((count, slot) => count + (panes[slot] ? 1 : 0), 0);
 }
 
+function normalisePaneGeometry(panes: PaneTabs): PaneTabs {
+  if (visiblePaneCount(panes) !== 2) return panes;
+
+  if (panes.topLeft && panes.bottomRight) {
+    return { ...emptyPaneTabs, topLeft: panes.topLeft, topRight: panes.bottomRight };
+  }
+
+  if (panes.topRight && panes.bottomLeft) {
+    return { ...emptyPaneTabs, topLeft: panes.bottomLeft, topRight: panes.topRight };
+  }
+
+  return panes;
+}
+
 function dockTargetFromPoint(rect: DOMRect, clientX: number, clientY: number): DockTarget {
   const distances: Record<DockTarget, number> = {
     bottom: rect.bottom - clientY,
@@ -401,16 +417,17 @@ function sanitiseStoredWorkspace(value: string | null, items: VaultEntry[]) {
       : stored.focusedPane === "top" || stored.focusedPane === "left" || stored.focusedPane === "center"
         ? "topLeft"
         : null;
-  const focusedPane = isPaneSlot(stored.focusedPane) && panes[stored.focusedPane]
+  const normalisedPanes = normalisePaneGeometry(panes);
+  const focusedPane = isPaneSlot(stored.focusedPane) && normalisedPanes[stored.focusedPane]
     ? stored.focusedPane
-    : legacyFocusedSlot && panes[legacyFocusedSlot]
+    : legacyFocusedSlot && normalisedPanes[legacyFocusedSlot]
       ? legacyFocusedSlot
-      : paneForPath(panes, activePath ?? "") ?? "topLeft";
+      : paneForPath(normalisedPanes, activePath ?? "") ?? "topLeft";
   const splitRatio = typeof stored.splitRatio === "number" && Number.isFinite(stored.splitRatio)
     ? Math.min(0.8, Math.max(0.2, stored.splitRatio))
     : 0.5;
 
-  return { activePath, focusedPane, openPaths, panes, splitRatio };
+  return { activePath, focusedPane, openPaths, panes: normalisedPanes, splitRatio };
 }
 
 function extractMarkdownHeadings(content: string, idPrefix = "outline-heading"): DocumentHeading[] {
@@ -553,15 +570,13 @@ async function fetchNoteContent(path: string) {
 
 function PanelSettings({
   position,
-  theme,
+  onOpenSettings,
   onPositionChange,
-  onThemeChange,
   onHide,
 }: {
   position: PanelPosition;
-  theme: ThemePreference;
+  onOpenSettings: () => void;
   onPositionChange: (position: PanelPosition) => void;
-  onThemeChange: (theme: ThemePreference) => void;
   onHide: () => void;
 }) {
   const itemClassName = "h-9 cursor-pointer rounded-md px-2.5 text-[13px] font-medium tracking-[-0.01em] transition-colors duration-150 hover:bg-accent/70 focus:bg-accent focus:text-accent-foreground active:bg-accent/80";
@@ -573,7 +588,7 @@ function PanelSettings({
         <button
           aria-label="Настройки панели Vault"
           className="grid size-8 place-items-center rounded-md text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent/70 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70"
-          title="Расположение и тема"
+          title="Настройки панели"
           type="button"
         >
           <span aria-hidden="true" className="text-[10px] font-bold leading-none tracking-[0.1em]">•••</span>
@@ -589,14 +604,10 @@ function PanelSettings({
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator className="my-1.5" />
-        <DropdownMenuLabel className={labelClassName}>Тема</DropdownMenuLabel>
-        {themeOptions.map(({ value, label, Icon }) => (
-          <DropdownMenuItem className={cn(itemClassName, theme === value && "bg-primary/10 text-foreground hover:bg-primary/15 focus:bg-primary/15")} key={value} onSelect={() => onThemeChange(value)}>
-            <Icon className="size-3.5" />
-            <span className="min-w-0 flex-1">{label}</span>
-            {theme === value ? <CheckIcon className="size-3.5 text-primary" motion="none" /> : null}
-          </DropdownMenuItem>
-        ))}
+        <DropdownMenuItem className={itemClassName} onSelect={onOpenSettings}>
+          <CogIcon className="size-3.5" />
+          <span className="min-w-0 flex-1">Настройки приложения</span>
+        </DropdownMenuItem>
         <DropdownMenuSeparator className="my-1.5" />
         <DropdownMenuItem className={cn(itemClassName, "mt-0.5 text-muted-foreground hover:text-foreground focus:text-foreground")} onSelect={onHide}>
           <CloseIcon className="size-3.5" />
@@ -742,6 +753,9 @@ function LoadingCanvas() {
 
 function VaultWorkspace() {
   const prefersReducedMotion = useReducedMotion();
+  const { settings } = useAppSettings();
+  const { notify } = useNotifications();
+  const theme = settings.theme;
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const importDirectoryRef = React.useRef("");
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
@@ -762,14 +776,21 @@ function VaultWorkspace() {
   const libraryPreferencesReadyRef = React.useRef(false);
   const panelPreferencesReadyRef = React.useRef(false);
   const lastVisiblePanelRef = React.useRef<VaultLibraryPresentation>("expanded");
-  const themePreferenceReadyRef = React.useRef(false);
   const [items, setItems] = React.useState<VaultEntry[]>([]);
   const [folders, setFolders] = React.useState<VaultFolderEntry[]>([]);
   const [tabs, setTabs] = React.useState<WorkspaceTab[]>([]);
   const [draggedTabPath, setDraggedTabPath] = React.useState<string | null>(null);
   const [dockTarget, setDockTarget] = React.useState<DockTarget | null>(null);
   const [activePath, setActivePath] = React.useState<string | null>(null);
-  const [paneTabs, setPaneTabs] = React.useState<PaneTabs>(emptyPaneTabs);
+  const [paneTabsState, setPaneTabsState] = React.useState<PaneTabs>(emptyPaneTabs);
+  const paneTabs = React.useMemo(() => normalisePaneGeometry(paneTabsState), [paneTabsState]);
+  const setPaneTabs = React.useCallback((update: React.SetStateAction<PaneTabs>) => {
+    setPaneTabsState((current) => {
+      const normalisedCurrent = normalisePaneGeometry(current);
+      const next = typeof update === "function" ? update(normalisedCurrent) : update;
+      return normalisePaneGeometry(next);
+    });
+  }, []);
   const [focusedPane, setFocusedPane] = React.useState<PaneSlot>("topLeft");
   const [paneSplitRatio, setPaneSplitRatio] = React.useState(0.5);
   const [isPaneResizing, setIsPaneResizing] = React.useState(false);
@@ -784,14 +805,13 @@ function VaultWorkspace() {
   const [horizontalPanelSize, setHorizontalPanelSize] = React.useState(PANEL_HORIZONTAL_DEFAULT_SIZE);
   const [isPanelResizing, setIsPanelResizing] = React.useState(false);
   const [isPanelClosing, setIsPanelClosing] = React.useState(false);
-  const [theme, setTheme] = React.useState<ThemePreference>("system");
+  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isWorkspaceReady, setIsWorkspaceReady] = React.useState(false);
   const [savingPaths, setSavingPaths] = React.useState<string[]>([]);
   const [isCreating, setIsCreating] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
   const [busyLibraryPaths, setBusyLibraryPaths] = React.useState<string[]>([]);
-  const [message, setMessage] = React.useState<string | null>(null);
   const [formattingHint, setFormattingHint] = React.useState<FormattingHint | null>(null);
   const [hoverPreview, setHoverPreview] = React.useState<HoverPreview | null>(null);
   const [hoverPreviewContentByPath, setHoverPreviewContentByPath] = React.useState<Record<string, string | null>>({});
@@ -810,12 +830,13 @@ function VaultWorkspace() {
     )));
   }
 
-  function setEditorMode(nextMode: React.SetStateAction<EditorMode>) {
-    updateActiveTab((tab) => ({
-      ...tab,
-      editorMode: typeof nextMode === "function" ? nextMode(tab.editorMode) : nextMode,
-    }));
-  }
+  const setEditorMode = React.useCallback((nextMode: React.SetStateAction<EditorMode>) => {
+    setTabs((current) => current.map((tab) => (
+      tab.item.path === activePath
+        ? { ...tab, editorMode: typeof nextMode === "function" ? nextMode(tab.editorMode) : nextMode }
+        : tab
+    )));
+  }, [activePath]);
 
   function setContent(value: string) {
     updateActiveTab((tab) => ({ ...tab, content: value }));
@@ -836,9 +857,11 @@ function VaultWorkspace() {
     });
   }
 
-  function beginTabDrag(event: React.PointerEvent<HTMLButtonElement>, path: string) {
+  function beginTabDrag(event: React.PointerEvent<HTMLElement>, path: string) {
     if (event.button !== 0) return;
     tabDragCleanupRef.current();
+    const dragHandle = event.currentTarget;
+    dragHandle.setPointerCapture(event.pointerId);
     tabDragSessionRef.current = {
       path,
       pointerId: event.pointerId,
@@ -851,7 +874,7 @@ function VaultWorkspace() {
       const session = tabDragSessionRef.current;
       if (!session || session.pointerId !== pointerEvent.pointerId) return;
       const distance = Math.hypot(pointerEvent.clientX - session.startX, pointerEvent.clientY - session.startY);
-      if (!session.started && distance < 6) return;
+      if (!session.started && distance < 4) return;
 
       if (!session.started) {
         session.started = true;
@@ -916,23 +939,14 @@ function VaultWorkspace() {
       window.removeEventListener("pointermove", moveDraggedTab);
       window.removeEventListener("pointerup", finishDraggedTab);
       window.removeEventListener("pointercancel", cancelDraggedTab);
+      if (dragHandle.hasPointerCapture(event.pointerId)) dragHandle.releasePointerCapture(event.pointerId);
     };
     tabDragCleanupRef.current = cleanup;
     window.addEventListener("pointermove", moveDraggedTab, { passive: false });
     window.addEventListener("pointerup", finishDraggedTab, { passive: false });
     window.addEventListener("pointercancel", cancelDraggedTab);
+    event.preventDefault();
   }
-
-  React.useEffect(() => {
-    const storedTheme = window.localStorage.getItem("archeion-theme");
-    const frame = window.requestAnimationFrame(() => {
-      if (storedTheme === "light" || storedTheme === "dark" || storedTheme === "system") {
-        setTheme(storedTheme);
-      }
-      themePreferenceReadyRef.current = true;
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
 
   React.useEffect(() => () => {
     if (hoverPreviewTimerRef.current !== null) window.clearTimeout(hoverPreviewTimerRef.current);
@@ -1000,14 +1014,6 @@ function VaultWorkspace() {
   }, []);
 
   React.useEffect(() => {
-    if (!themePreferenceReadyRef.current) return;
-    const root = document.documentElement;
-    root.classList.remove("light", "dark");
-    if (theme !== "system") root.classList.add(theme);
-    window.localStorage.setItem("archeion-theme", theme);
-  }, [theme]);
-
-  React.useEffect(() => {
     if (!panelPreferencesReadyRef.current) return;
     window.localStorage.setItem("archeion-panel-position", panelPosition);
     window.localStorage.setItem(PANEL_MODE_STORAGE_KEY, panelPresentation);
@@ -1038,7 +1044,7 @@ function VaultWorkspace() {
 
     window.addEventListener("keydown", toggleQuickPreview);
     return () => window.removeEventListener("keydown", toggleQuickPreview);
-  }, [paneTabs]);
+  }, [setEditorMode]);
 
   React.useEffect(() => {
     if (panelPresentation !== "hidden") lastVisiblePanelRef.current = panelPresentation;
@@ -1106,7 +1112,11 @@ function VaultWorkspace() {
     }
 
     if (tabs.length >= MAX_OPEN_TABS) {
-      setMessage(`Можно открыть не больше ${MAX_OPEN_TABS} вкладок. Закройте одну из открытых.`);
+      notify({
+        kind: "warning",
+        message: `Можно открыть не больше ${MAX_OPEN_TABS} вкладок. Закройте одну из открытых.`,
+        dedupeKey: "open-tabs-limit",
+      });
       return;
     }
 
@@ -1125,7 +1135,6 @@ function VaultWorkspace() {
     setPaneTabs((current) => ({ ...current, [destination]: item.path }));
     setFocusedPane(destination);
     setActivePath(item.path);
-    setMessage(null);
     setWorkspaceView("document");
     setFormattingHint(null);
 
@@ -1160,7 +1169,11 @@ function VaultWorkspace() {
       });
       setFocusedPane("topLeft");
       setActivePath((current) => current === item.path ? fallbackPath : current);
-      setMessage(error instanceof Error ? error.message : "Не удалось открыть заметку");
+      notify({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Не удалось открыть заметку",
+        dedupeKey: `open-note:${item.path}`,
+      });
     }
   }
 
@@ -1248,7 +1261,13 @@ function VaultWorkspace() {
             const noteContent = await fetchNoteContent(tab.item.path);
             return { ...tab, content: noteContent, isLoading: false, savedContent: noteContent };
           } catch (error) {
-            if (active) setMessage(error instanceof Error ? error.message : "Не удалось открыть заметку");
+            if (active) {
+              notify({
+                kind: "error",
+                message: error instanceof Error ? error.message : "Не удалось открыть заметку",
+                dedupeKey: `restore-note:${tab.item.path}`,
+              });
+            }
             return null;
           }
         }))).filter((tab): tab is WorkspaceTab => tab !== null);
@@ -1280,7 +1299,11 @@ function VaultWorkspace() {
         setPaneSplitRatio(restored.splitRatio);
       } catch (error) {
         if (active) {
-          setMessage(error instanceof Error ? error.message : "Не удалось открыть Vault");
+          notify({
+            kind: "error",
+            message: error instanceof Error ? error.message : "Не удалось открыть Vault",
+            dedupeKey: "open-vault",
+          });
         }
       } finally {
         if (active) {
@@ -1293,7 +1316,7 @@ function VaultWorkspace() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [notify, setPaneTabs]);
 
   React.useEffect(() => {
     if (!isWorkspaceReady) return;
@@ -1311,7 +1334,6 @@ function VaultWorkspace() {
 
   async function createLibraryNote({ directory, name }: VaultLibraryCreateInput) {
     setIsCreating(true);
-    setMessage(null);
 
     try {
       const response = await fetch("/api/vault", {
@@ -1326,8 +1348,6 @@ function VaultWorkspace() {
       await refreshItems();
       await openItem(body.item);
     } catch (error) {
-      const reason = error instanceof Error ? error.message : "Не удалось создать заметку";
-      setMessage(reason);
       throw error;
     } finally {
       setIsCreating(false);
@@ -1340,7 +1360,6 @@ function VaultWorkspace() {
     if (!file) return;
 
     setIsUploading(true);
-    setMessage(null);
 
     try {
       const formData = new FormData();
@@ -1356,15 +1375,23 @@ function VaultWorkspace() {
       revealFolder(parentFolder(body.item.path));
       await refreshItems();
       await openItem(body.item);
+      notify({
+        kind: "success",
+        message: `Файл «${body.item.name}» добавлен`,
+        dedupeKey: "upload-file",
+      });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось добавить файл");
+      notify({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Не удалось добавить файл",
+        dedupeKey: "upload-file-error",
+      });
     } finally {
       setIsUploading(false);
     }
   }
 
   async function createLibraryFolder({ directory, name }: VaultLibraryCreateInput) {
-    setMessage(null);
     setBusyLibraryPaths((current) => [...new Set([...current, directory || "__root__"])]);
 
     try {
@@ -1378,10 +1405,7 @@ function VaultWorkspace() {
       const body = (await response.json()) as { folder: VaultFolderEntry };
       await refreshItems();
       revealFolder(body.folder.path);
-      setMessage(`Папка «${body.folder.name}» создана`);
     } catch (error) {
-      const reason = error instanceof Error ? error.message : "Не удалось создать папку";
-      setMessage(reason);
       throw error;
     } finally {
       setBusyLibraryPaths((current) => current.filter((path) => path !== (directory || "__root__")));
@@ -1450,14 +1474,11 @@ function VaultWorkspace() {
 
   function requireIdleTarget(target: VaultLibraryTarget) {
     if (!targetHasPendingOperation(target)) return;
-    const reason = "Дождитесь окончания загрузки или сохранения файла";
-    setMessage(reason);
-    throw new Error(reason);
+    throw new Error("Дождитесь окончания загрузки или сохранения файла");
   }
 
   async function renameLibraryTarget(target: VaultLibraryTarget, name: string) {
     requireIdleTarget(target);
-    setMessage(null);
     setBusyLibraryPaths((current) => [...new Set([...current, target.path])]);
 
     try {
@@ -1472,10 +1493,7 @@ function VaultWorkspace() {
       const changes = normalisePathChanges(body);
       const nextItems = await refreshItems();
       applyPathChanges(changes, nextItems);
-      setMessage("Название обновлено");
     } catch (error) {
-      const reason = error instanceof Error ? error.message : "Не удалось переименовать";
-      setMessage(reason);
       throw error;
     } finally {
       setBusyLibraryPaths((current) => current.filter((path) => path !== target.path));
@@ -1487,12 +1505,9 @@ function VaultWorkspace() {
     const currentDirectory = parentFolder(input.path);
     if (input.destination === currentDirectory) return;
     if (input.kind === "folder" && pathIsWithin(input.destination, input.path)) {
-      const reason = "Нельзя переместить папку внутрь самой себя";
-      setMessage(reason);
-      throw new Error(reason);
+      throw new Error("Нельзя переместить папку внутрь самой себя");
     }
 
-    setMessage(null);
     setBusyLibraryPaths((current) => [...new Set([...current, input.path])]);
     try {
       const response = await fetch("/api/vault/item", {
@@ -1507,10 +1522,7 @@ function VaultWorkspace() {
       const nextItems = await refreshItems();
       applyPathChanges(changes, nextItems);
       revealFolder(input.destination);
-      setMessage(input.destination ? `Перемещено в «${folderLabel(input.destination)}»` : "Перемещено в корень Vault");
     } catch (error) {
-      const reason = error instanceof Error ? error.message : "Не удалось переместить";
-      setMessage(reason);
       throw error;
     } finally {
       setBusyLibraryPaths((current) => current.filter((path) => path !== input.path));
@@ -1565,12 +1577,9 @@ function VaultWorkspace() {
       && tab.content !== tab.savedContent
     ));
     if (hasDirtyNote) {
-      const reason = "Сначала сохраните изменения в открытых заметках";
-      setMessage(reason);
-      throw new Error(reason);
+      throw new Error("Сначала сохраните изменения в открытых заметках");
     }
 
-    setMessage(null);
     setBusyLibraryPaths((current) => [...new Set([...current, target.path])]);
     try {
       const response = await fetch("/api/vault/item", {
@@ -1582,10 +1591,7 @@ function VaultWorkspace() {
 
       removeTargetFromWorkspace(target);
       await refreshItems();
-      setMessage(target.kind === "folder" ? "Папка удалена" : "Файл удалён");
     } catch (error) {
-      const reason = error instanceof Error ? error.message : "Не удалось удалить";
-      setMessage(reason);
       throw error;
     } finally {
       setBusyLibraryPaths((current) => current.filter((path) => path !== target.path));
@@ -1609,7 +1615,6 @@ function VaultWorkspace() {
 
     const path = selected.path;
     setSavingPaths((current) => current.includes(path) ? current : [...current, path]);
-    setMessage(null);
 
     try {
       const response = await fetch("/api/vault/note", {
@@ -1626,9 +1631,17 @@ function VaultWorkspace() {
         : tab));
       hoverPreviewCacheRef.current[body.item.path] = content;
       setHoverPreviewContentByPath((current) => ({ ...current, [body.item.path]: content }));
-      setMessage("Изменения сохранены в Markdown-файл");
+      notify({
+        kind: "success",
+        message: "Изменения сохранены в Markdown-файл",
+        dedupeKey: `save-note:${path}`,
+      });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось сохранить заметку");
+      notify({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Не удалось сохранить заметку",
+        dedupeKey: `save-note-error:${path}`,
+      });
     } finally {
       setSavingPaths((current) => current.filter((candidate) => candidate !== path));
     }
@@ -1638,7 +1651,11 @@ function VaultWorkspace() {
     const tab = tabs.find((candidate) => candidate.item.path === path);
     if (!tab) return;
     if (tab.item.kind === "note" && tab.content !== tab.savedContent) {
-      setMessage("Сначала сохраните изменения, затем закройте вкладку.");
+      notify({
+        kind: "warning",
+        message: "Сначала сохраните изменения, затем закройте вкладку.",
+        dedupeKey: `close-dirty-tab:${path}`,
+      });
       return;
     }
 
@@ -1681,7 +1698,11 @@ function VaultWorkspace() {
 
   function dockTab(path: string, target: DockTarget) {
     if (tabs.length < 2) {
-      setMessage("Откройте хотя бы две вкладки, чтобы поставить файлы рядом.");
+      notify({
+        kind: "warning",
+        message: "Откройте хотя бы две вкладки, чтобы поставить файлы рядом.",
+        dedupeKey: "dock-needs-tabs",
+      });
       setDockTarget(null);
       setDraggedTabPath(null);
       return;
@@ -1689,26 +1710,40 @@ function VaultWorkspace() {
 
     const source = paneForPath(paneTabs, path);
     const [primarySlot, companionSlot] = dockTargetSlots[target];
+    const edgeSlots = dockEdgeSlots[target];
     let nextPanes: PaneTabs;
 
     if (visiblePaneCount(paneTabs) <= 1) {
       const companionPath = tabs.find((tab) => tab.item.path !== path)?.item.path ?? null;
       if (!companionPath) {
-        setMessage("Для разделения экрана нужна ещё одна открытая вкладка.");
+        notify({
+          kind: "warning",
+          message: "Для разделения экрана нужна ещё одна открытая вкладка.",
+          dedupeKey: "dock-needs-tabs",
+        });
         setDockTarget(null);
         setDraggedTabPath(null);
         return;
       }
       nextPanes = { ...emptyPaneTabs, [primarySlot]: path, [companionSlot]: companionPath };
+    } else if (visiblePaneCount(paneTabs) === 2 && source) {
+      const companionPath = paneSlots
+        .map((slot) => paneTabs[slot])
+        .find((panePath) => panePath && panePath !== path) ?? null;
+      nextPanes = { ...emptyPaneTabs, [primarySlot]: path, [companionSlot]: companionPath };
     } else {
       nextPanes = { ...paneTabs };
-      let destination = [primarySlot, companionSlot].find((slot) => nextPanes[slot] === path)
-        ?? [primarySlot, companionSlot].find((slot) => !nextPanes[slot])
+      let destination = edgeSlots.find((slot) => nextPanes[slot] === path)
+        ?? edgeSlots.find((slot) => !nextPanes[slot])
         ?? paneSlots.find((slot) => !nextPanes[slot])
         ?? null;
 
       if (!destination && !source) {
-        setMessage("На экране уже четыре файла. Сверните одну область или переместите открытую вкладку.");
+        notify({
+          kind: "warning",
+          message: "На экране уже четыре файла. Сверните одну область или переместите открытую вкладку.",
+          dedupeKey: "dock-pane-limit",
+        });
         setDockTarget(null);
         setDraggedTabPath(null);
         return;
@@ -1723,18 +1758,12 @@ function VaultWorkspace() {
         nextPanes[destination] = path;
       }
     }
-    const dockedTab = tabs.find((tab) => tab.item.path === path);
-    const dockedTitle = dockedTab
-      ? dockedTab.item.kind === "note" ? noteTitle(dockedTab.item) : dockedTab.item.name
-      : path;
-
     setPaneTabs(nextPanes);
     setPaneSplitRatio(0.5);
     setFocusedPane(primarySlot);
     setActivePath(path);
     setWorkspaceView("document");
     setFormattingHint(null);
-    setMessage(`${dockedTitle} открыт ${dockTargetLabels[target]}`);
     setDockTarget(null);
     setDraggedTabPath(null);
   }
@@ -1852,6 +1881,13 @@ function VaultWorkspace() {
   const hoverPreviewContent = hoverPreview ? hoverPreviewContentByPath[hoverPreview.item.path] : undefined;
   const visiblePanes = visiblePaneCount(paneTabs);
   const visiblePaneSlots = paneSlots.filter((slot) => paneTabs[slot]);
+  const groupedTabs = visiblePanes > 1
+    ? tabs.filter((tab) => paneForPath(paneTabs, tab.item.path) !== null)
+    : [];
+  const standaloneTabs = visiblePanes > 1
+    ? tabs.filter((tab) => paneForPath(paneTabs, tab.item.path) === null)
+    : tabs;
+  const visibleEditorMode: EditorMode = visiblePanes > 1 && editorMode === "split" ? "edit" : editorMode;
   const splitAxis: PaneSplitAxis | null = visiblePanes === 2
     ? (visiblePaneSlots.every((slot) => slot === "topLeft" || slot === "topRight")
       || visiblePaneSlots.every((slot) => slot === "bottomLeft" || slot === "bottomRight")
@@ -2059,12 +2095,40 @@ function VaultWorkspace() {
             gridTemplateAreas: '"canvas" "panel"',
             gridTemplateRows: `minmax(0,1fr) ${horizontalPanelTrack}`,
           };
+  const notificationViewportStyle: React.CSSProperties = panelPresentation === "hidden"
+    ? { bottom: "1rem", left: "auto", right: "1rem" }
+    : panelPosition === "right"
+      ? {
+          bottom: "1rem",
+          left: "1rem",
+          right: "auto",
+          width: `min(24rem, calc(100vw - ${sidePanelTrack} - 2rem))`,
+        }
+      : panelPosition === "left"
+        ? {
+            bottom: "1rem",
+            left: "auto",
+            right: "1rem",
+            width: `min(24rem, calc(100vw - ${sidePanelTrack} - 2rem))`,
+          }
+        : panelPosition === "bottom"
+          ? { bottom: `calc(${horizontalPanelTrack} + 1rem)`, left: "auto", right: "1rem" }
+          : { bottom: "1rem", left: "auto", right: "1rem" };
   const panelBorderClass = panelPresentation === "hidden" ? "" : {
     bottom: "border-t",
     left: "border-r",
     right: "border-l",
     top: "border-b",
   }[panelPosition];
+  const multiPaneGridAreas = visiblePanes === 3
+    ? !paneTabs.topLeft
+      ? '"topRight topRight" "bottomLeft bottomRight"'
+      : !paneTabs.topRight
+        ? '"topLeft topLeft" "bottomLeft bottomRight"'
+        : !paneTabs.bottomLeft
+          ? '"topLeft topRight" "bottomRight bottomRight"'
+          : '"topLeft topRight" "bottomLeft bottomLeft"'
+    : '"topLeft topRight" "bottomLeft bottomRight"';
   const paneGridStyle: React.CSSProperties | undefined = splitAxis === "horizontal"
     ? {
         gridTemplateAreas: visiblePaneSlots.includes("topLeft") && visiblePaneSlots.includes("topRight")
@@ -2081,19 +2145,20 @@ function VaultWorkspace() {
         }
       : visiblePanes > 1
         ? {
-            gridTemplateAreas: '"topLeft topRight" "bottomLeft bottomRight"',
+            gridTemplateAreas: multiPaneGridAreas,
             gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
             gridTemplateRows: "minmax(0, 1fr) minmax(0, 1fr)",
           }
         : undefined;
 
+  const markdownEditorClassName = cn(
+    "auto-hide-scrollbar min-h-[calc(100dvh-15rem)] resize-none rounded-none border-0 bg-transparent px-0 py-0 font-mono text-[15px] leading-7 shadow-none focus-visible:ring-0 md:min-h-[calc(100dvh-14rem)]",
+    isHorizontalDock && "lg:min-h-[calc(100dvh-30rem)]",
+  );
   const markdownEditor = (
     <Textarea
       aria-label="Редактор Markdown"
-      className={cn(
-        "auto-hide-scrollbar min-h-[calc(100dvh-15rem)] resize-none rounded-none border-0 bg-transparent px-0 py-0 font-mono text-[15px] leading-7 shadow-none focus-visible:ring-0 md:min-h-[calc(100dvh-14rem)]",
-        isHorizontalDock && "lg:min-h-[calc(100dvh-30rem)]",
-      )}
+      className={markdownEditorClassName}
       onChange={(event) => {
         setContent(event.target.value);
         setFormattingHint(null);
@@ -2123,6 +2188,7 @@ function VaultWorkspace() {
     const isActive = activePath === path;
     const title = tab.item.kind === "note" ? noteTitle(tab.item) : tab.item.name;
     const tabIsDirty = tab.item.kind === "note" && tab.content !== tab.savedContent;
+    const paneEditorMode: EditorMode = visiblePanes > 1 && tab.editorMode === "split" ? "edit" : tab.editorMode;
 
     return (
       <section
@@ -2143,18 +2209,26 @@ function VaultWorkspace() {
         style={{ gridArea: slot }}
       >
         {visiblePanes > 1 ? (
-          <header className="flex h-9 shrink-0 items-center gap-2 border-b bg-background/55 px-3 text-xs">
+          <header
+            className={cn(
+              "flex h-9 shrink-0 touch-none select-none items-center gap-2 border-b bg-background/55 px-3 text-xs cursor-grab transition-colors duration-150 active:cursor-grabbing motion-reduce:transition-none",
+              draggedTabPath === path && "cursor-grabbing bg-primary/10",
+            )}
+            data-workspace-pane-drag-handle={path}
+            onPointerDown={(event) => beginTabDrag(event, path)}
+            title="Перетащите панель к нужному краю экрана"
+          >
             {tab.item.kind === "note"
               ? <NoteIcon className="size-3.5 text-muted-foreground" motion="none" />
               : <AttachmentIcon className="size-3.5 text-muted-foreground" motion="none" />}
             <span className="min-w-0 flex-1 truncate font-medium">{title}</span>
             {tabIsDirty ? <span className="size-1.5 shrink-0 rounded-full bg-primary" title="Есть несохранённые изменения" /> : null}
-            <span className="text-[10px] text-muted-foreground">{paneLabels[slot]}</span>
             {visiblePanes > 1 ? (
               <button
                 aria-label={`Убрать панель ${paneLabels[slot].toLowerCase()}`}
                 className="grid size-7 place-items-center rounded-[4px] text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70"
                 onClick={() => collapsePane(slot)}
+                onPointerDown={(event) => event.stopPropagation()}
                 title="Убрать разделение"
                 type="button"
               >
@@ -2171,7 +2245,7 @@ function VaultWorkspace() {
           )}
           onScroll={(event) => {
             revealScrollbar(event.currentTarget);
-            if (isActive && editorMode !== "edit") updateActiveHeadingFromPreview();
+            if (isActive && paneEditorMode !== "edit") updateActiveHeadingFromPreview();
           }}
           ref={isActive ? canvasScrollRef : undefined}
         >
@@ -2180,9 +2254,9 @@ function VaultWorkspace() {
           {!tab.isLoading && tab.item.kind === "note" && isActive ? (
             <div className={cn("relative mx-auto min-h-full", showDocumentOutline ? "max-w-5xl" : "max-w-3xl")}>
               <div className="mx-auto flex min-h-full max-w-3xl flex-col">
-                {editorMode === "edit" ? markdownEditor : null}
-                {editorMode === "preview" ? <MarkdownPreview content={tab.content} /> : null}
-                {editorMode === "split" ? (
+                {paneEditorMode === "edit" ? markdownEditor : null}
+                {paneEditorMode === "preview" ? <MarkdownPreview content={tab.content} /> : null}
+                {paneEditorMode === "split" ? (
                   <div className={cn(
                     "grid gap-6",
                     visiblePanes === 1 && "lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.85fr)] lg:gap-8",
@@ -2219,7 +2293,17 @@ function VaultWorkspace() {
 
           {!tab.isLoading && tab.item.kind === "note" && !isActive ? (
             <div className="mx-auto max-w-3xl">
-              <MarkdownPreview content={tab.content} headingPrefix={`pane-${slot}-heading`} />
+              {paneEditorMode === "preview" ? (
+                <MarkdownPreview content={tab.content} headingPrefix={`pane-${slot}-heading`} />
+              ) : (
+                <Textarea
+                  aria-label={`Редактор Markdown: ${title}`}
+                  className={markdownEditorClassName}
+                  readOnly
+                  spellCheck={false}
+                  value={tab.content}
+                />
+              )}
             </div>
           ) : null}
 
@@ -2244,6 +2328,73 @@ function VaultWorkspace() {
     );
   }
 
+  function renderWorkspaceTab(tab: WorkspaceTab, isGrouped = false) {
+    const path = tab.item.path;
+    const isActive = activePath === path && workspaceView === "document";
+    const tabIsDirty = tab.item.kind === "note" && tab.content !== tab.savedContent;
+    const title = tab.item.kind === "note" ? noteTitle(tab.item) : tab.item.name;
+
+    return (
+      <motion.div
+        animate={{ opacity: 1, scale: 1, x: 0 }}
+        className={cn(
+          "group/tab relative flex min-w-28 max-w-52 items-center overflow-hidden rounded-md text-muted-foreground transition-[background-color,color,opacity] duration-150 hover:bg-background/50 hover:text-foreground motion-reduce:transition-none",
+          isGrouped ? "h-8 bg-background/10" : "h-9",
+          isActive && "text-foreground",
+          draggedTabPath === path && "opacity-45",
+        )}
+        exit={prefersReducedMotion ? undefined : { opacity: 0, scale: 0.96, x: -6 }}
+        initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.96, x: -6 }}
+        key={path}
+        layout={prefersReducedMotion ? false : "position"}
+        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+      >
+        {isActive ? (
+          prefersReducedMotion ? (
+            <span aria-hidden="true" className="absolute inset-0 rounded-md bg-[var(--editor)] shadow-sm ring-1 ring-border/70" />
+          ) : (
+            <motion.span
+              aria-hidden="true"
+              className="absolute inset-0 rounded-md bg-[var(--editor)] shadow-sm ring-1 ring-border/70"
+              layoutId="workspace-active-tab"
+              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            />
+          )
+        ) : null}
+        <button
+          aria-controls={`workspace-pane-${paneForPath(paneTabs, path) ?? focusedPane}`}
+          aria-selected={isActive}
+          className="relative z-10 flex min-w-0 flex-1 cursor-grab items-center gap-2 self-stretch rounded-md pl-2.5 pr-1 text-left text-xs font-medium outline-none transition-colors duration-150 active:cursor-grabbing focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70 motion-reduce:transition-none"
+          data-workspace-tab-path={path}
+          onClick={() => activateTab(path)}
+          onPointerDown={(event) => beginTabDrag(event, path)}
+          role="tab"
+          title={`${path} — перетащите на левый, правый, верхний или нижний край документа`}
+          type="button"
+        >
+          {tab.item.kind === "note"
+            ? <NoteIcon className={cn("size-3.5 shrink-0 transition-colors duration-150", isActive && "text-primary")} />
+            : <AttachmentIcon className={cn("size-3.5 shrink-0 transition-colors duration-150", isActive && "text-primary")} />}
+          <span className="truncate">{title}</span>
+          {tabIsDirty ? <span aria-label="Есть несохранённые изменения" className="size-1.5 shrink-0 rounded-full bg-primary" /> : null}
+        </button>
+        <button
+          aria-label={`Закрыть ${title}`}
+          className={cn(
+            "relative z-10 mr-0.5 grid size-8 shrink-0 place-items-center rounded-md opacity-0 outline-none transition-[background-color,opacity] duration-150 hover:bg-muted hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/70 motion-reduce:transition-none group-hover/tab:opacity-70",
+            isActive && "opacity-55",
+          )}
+          draggable={false}
+          onClick={() => closeTab(path)}
+          title={`Закрыть ${title}`}
+          type="button"
+        >
+          <CloseIcon className="size-3.5" motion="hover" />
+        </button>
+      </motion.div>
+    );
+  }
+
   return (
     <>
       <main className="h-[100dvh] overflow-hidden bg-background text-foreground selection:bg-[var(--selection)]">
@@ -2263,85 +2414,39 @@ function VaultWorkspace() {
           className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] bg-[var(--editor)]"
           style={{ gridArea: "canvas" }}
         >
-          <nav aria-label="Открытые файлы" className="row-start-1 z-20 flex min-w-0 items-center border-b bg-muted/45 px-2.5 py-2.5">
+          <nav aria-label="Открытые файлы" className="row-start-1 z-20 flex h-12 shrink-0 min-w-0 items-end border-b bg-muted/45 px-2.5">
             <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <div className="flex min-w-max items-center gap-1" role="tablist">
+              <div className="flex min-w-max items-end gap-2 pt-2" role="tablist">
                 <AnimatePresence initial={false}>
-                  {tabs.map((tab) => {
-                    const path = tab.item.path;
-                    const isActive = activePath === path && workspaceView === "document";
-                    const tabIsDirty = tab.item.kind === "note" && tab.content !== tab.savedContent;
-                    const title = tab.item.kind === "note" ? noteTitle(tab.item) : tab.item.name;
-
-                    return (
-                      <motion.div
-                        animate={{ opacity: 1, scale: 1, x: 0 }}
-                        className={cn(
-                          "group/tab relative flex h-9 min-w-28 max-w-52 items-center overflow-hidden rounded-md text-muted-foreground transition-[background-color,color,opacity] duration-150 hover:bg-background/50 hover:text-foreground motion-reduce:transition-none",
-                          isActive && "text-foreground",
-                          draggedTabPath === path && "opacity-45",
-                        )}
-                        exit={prefersReducedMotion ? undefined : { opacity: 0, scale: 0.96, x: -6 }}
-                        initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.96, x: -6 }}
-                        key={path}
-                        layout={prefersReducedMotion ? false : "position"}
-                        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                      >
-                        {isActive ? (
-                          prefersReducedMotion ? (
-                            <span aria-hidden="true" className="absolute inset-0 rounded-md bg-[var(--editor)] shadow-sm ring-1 ring-border/70" />
-                          ) : (
-                            <motion.span
-                              aria-hidden="true"
-                              className="absolute inset-0 rounded-md bg-[var(--editor)] shadow-sm ring-1 ring-border/70"
-                              layoutId="workspace-active-tab"
-                              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                            />
-                          )
-                        ) : null}
-                        <button
-                          aria-controls={`workspace-pane-${paneForPath(paneTabs, path) ?? focusedPane}`}
-                          aria-selected={isActive}
-                          className="relative z-10 flex min-w-0 flex-1 cursor-grab items-center gap-2 self-stretch rounded-md pl-2.5 pr-1 text-left text-xs font-medium outline-none transition-colors duration-150 active:cursor-grabbing focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70 motion-reduce:transition-none"
-                          data-workspace-tab-path={path}
-                          onClick={() => activateTab(path)}
-                          onPointerDown={(event) => beginTabDrag(event, path)}
-                          role="tab"
-                          title={`${path} — перетащите по полосе или в левую/правую часть документа`}
-                          type="button"
-                        >
-                          {tab.item.kind === "note"
-                            ? <NoteIcon className={cn("size-3.5 shrink-0 transition-colors duration-150", isActive && "text-primary")} />
-                            : <AttachmentIcon className={cn("size-3.5 shrink-0 transition-colors duration-150", isActive && "text-primary")} />}
-                          <span className="truncate">{title}</span>
-                          {tabIsDirty ? <span aria-label="Есть несохранённые изменения" className="size-1.5 shrink-0 rounded-full bg-primary" /> : null}
-                        </button>
-                        <button
-                          aria-label={`Закрыть ${title}`}
-                          className={cn(
-                            "relative z-10 mr-0.5 grid size-8 shrink-0 place-items-center rounded-md opacity-0 outline-none transition-[background-color,opacity] duration-150 hover:bg-muted hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/70 motion-reduce:transition-none group-hover/tab:opacity-70",
-                            isActive && "opacity-55",
-                          )}
-                          draggable={false}
-                          onClick={() => closeTab(path)}
-                          title={`Закрыть ${title}`}
-                          type="button"
-                        >
-                          <CloseIcon className="size-3.5" motion="hover" />
-                        </button>
-                      </motion.div>
-                    );
-                  })}
+                  {standaloneTabs.map((tab) => renderWorkspaceTab(tab))}
                 </AnimatePresence>
+
+                {groupedTabs.length > 0 ? (
+                  <motion.div
+                    animate={{ opacity: 1, y: 0 }}
+                    aria-label="Вкладки разделённого экрана"
+                    className="workspace-tab-group relative mx-2 flex h-9 shrink-0 items-end px-1"
+                    data-workspace-tab-group
+                    initial={prefersReducedMotion ? false : { opacity: 0, y: -2 }}
+                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <span aria-hidden="true" className="workspace-tab-group-shelf absolute inset-x-0 bottom-0 h-9" />
+                    <div className="relative z-10 flex h-9 min-h-0 items-center gap-0.5">
+                      <AnimatePresence initial={false}>
+                        {groupedTabs.map((tab) => renderWorkspaceTab(tab, true))}
+                      </AnimatePresence>
+                    </div>
+                  </motion.div>
+                ) : null}
+
                 {tabs.length === 0 ? (
                   <p className="flex h-9 items-center px-3 text-xs text-muted-foreground">Откройте файл из Vault</p>
                 ) : null}
               </div>
             </div>
-
           </nav>
 
-          <header className="row-start-2 flex min-h-14 min-w-0 items-center justify-between gap-2 border-b bg-[var(--editor)] px-3 py-2.5 md:px-6 min-[1101px]:gap-4">
+          <header className="row-start-2 flex h-16 shrink-0 min-w-0 items-center justify-between gap-2 border-b bg-[var(--editor)] px-3 py-2.5 md:px-6 min-[1101px]:gap-4">
             <div className="min-w-0 flex-1">
               {workspaceView === "brain" ? (
                 <>
@@ -2369,29 +2474,31 @@ function VaultWorkspace() {
                 <>
                 <div aria-label="Режим документа" className="hidden rounded-md bg-muted p-1 min-[1101px]:flex" role="tablist">
                   <button
-                    aria-selected={editorMode === "edit"}
-                    className={cn("h-7 rounded-[5px] px-2.5 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/70", editorMode === "edit" && "bg-background text-foreground shadow-sm")}
+                    aria-selected={visibleEditorMode === "edit"}
+                    className={cn("h-7 rounded-[5px] px-2.5 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/70", visibleEditorMode === "edit" && "bg-background text-foreground shadow-sm")}
                     onClick={() => setEditorMode("edit")}
                     role="tab"
                     type="button"
                   >
                     Редактор
                   </button>
+                  {visiblePanes === 1 ? (
+                    <button
+                      aria-selected={visibleEditorMode === "split"}
+                      className={cn("h-7 rounded-[5px] px-2.5 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/70", visibleEditorMode === "split" && "bg-background text-foreground shadow-sm")}
+                      onClick={() => {
+                        setFormattingHint(null);
+                        setEditorMode("split");
+                      }}
+                      role="tab"
+                      type="button"
+                    >
+                      Рядом
+                    </button>
+                  ) : null}
                   <button
-                    aria-selected={editorMode === "split"}
-                    className={cn("h-7 rounded-[5px] px-2.5 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/70 disabled:pointer-events-none disabled:opacity-40", editorMode === "split" && "bg-background text-foreground shadow-sm")}
-                    onClick={() => {
-                      setFormattingHint(null);
-                      setEditorMode("split");
-                    }}
-                    role="tab"
-                    type="button"
-                  >
-                    Рядом
-                  </button>
-                  <button
-                    aria-selected={editorMode === "preview"}
-                    className={cn("h-7 rounded-[5px] px-2.5 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/70", editorMode === "preview" && "bg-background text-foreground shadow-sm")}
+                    aria-selected={visibleEditorMode === "preview"}
+                    className={cn("h-7 rounded-[5px] px-2.5 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring/70", visibleEditorMode === "preview" && "bg-background text-foreground shadow-sm")}
                     onClick={() => setEditorMode("preview")}
                     role="tab"
                     type="button"
@@ -2400,13 +2507,13 @@ function VaultWorkspace() {
                   </button>
                 </div>
                 <button
-                  aria-label={editorMode === "edit" ? "Открыть просмотр Markdown" : "Открыть редактор Markdown"}
+                  aria-label={visibleEditorMode === "edit" ? "Открыть просмотр Markdown" : "Открыть редактор Markdown"}
                   className="hidden size-8 place-items-center rounded-md bg-muted text-muted-foreground outline-none transition-colors duration-150 hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/70 max-[1100px]:inline-grid"
                   onClick={() => setEditorMode((mode) => (mode === "edit" ? "preview" : "edit"))}
-                  title={editorMode === "edit" ? "Открыть просмотр Markdown" : "Открыть редактор Markdown"}
+                  title={visibleEditorMode === "edit" ? "Открыть просмотр Markdown" : "Открыть редактор Markdown"}
                   type="button"
                 >
-                  {editorMode === "edit"
+                  {visibleEditorMode === "edit"
                     ? <PreviewIcon className="size-3.5" motion="hover" />
                     : <EditIcon className="size-3.5" motion="hover" />}
                 </button>
@@ -2460,7 +2567,7 @@ function VaultWorkspace() {
                   type="button"
                 >
                   <GraphIcon className="size-3.5" />
-                  <span className="max-[1100px]:hidden">Атлас</span>
+                  <span className="max-[1100px]:sr-only">Атлас</span>
                 </button>
               </div>
             </div>
@@ -2489,78 +2596,81 @@ function VaultWorkspace() {
               <div
                 className={cn(
                   "relative h-full min-h-0 overflow-hidden",
-                  splitSlot ? "block lg:grid" : "flex",
-                  isPaneResizing && "select-none cursor-col-resize",
+                  visiblePanes > 1 ? "grid bg-border" : "flex",
+                  isPaneResizing && "select-none",
                 )}
-                data-workspace-split={splitSlot ?? undefined}
+                data-workspace-split={splitAxis ?? undefined}
                 ref={workspacePaneContainerRef}
                 style={paneGridStyle}
               >
-                {splitSlot === "left" && paneTabs.left ? renderWorkspacePane("left", paneTabs.left) : null}
-                {splitSlot ? (
+                {visiblePaneSlots.map((slot) => {
+                  const path = paneTabs[slot];
+                  return path ? renderWorkspacePane(slot, path) : null;
+                })}
+                {splitAxis ? (
                   <div
-                    aria-label="Изменить ширину областей документов"
-                    aria-orientation="vertical"
+                    aria-label={splitAxis === "horizontal" ? "Изменить ширину областей документов" : "Изменить высоту областей документов"}
+                    aria-orientation={splitAxis === "horizontal" ? "vertical" : "horizontal"}
                     aria-valuemax={80}
                     aria-valuemin={20}
                     aria-valuenow={Math.round(paneSplitRatio * 100)}
-                    className="group relative z-20 hidden h-full cursor-col-resize touch-none items-stretch justify-center outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70 lg:flex"
+                    className={cn(
+                      "group relative z-20 flex touch-none items-stretch justify-center outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
+                      splitAxis === "horizontal" ? "h-full cursor-col-resize" : "w-full cursor-row-resize",
+                    )}
                     data-workspace-pane-divider
                     onDoubleClick={() => setPaneSplitRatio(0.5)}
-                    onKeyDown={resizePanesWithKeyboard}
-                    onPointerDown={beginPaneResize}
+                    onKeyDown={(event) => resizePanesWithKeyboard(event, splitAxis)}
+                    onPointerDown={(event) => beginPaneResize(event, splitAxis)}
                     role="separator"
                     style={{ gridArea: "divider" }}
                     tabIndex={0}
-                    title="Перетащите, чтобы изменить ширину · двойной клик — поровну"
+                    title={splitAxis === "horizontal"
+                      ? "Перетащите, чтобы изменить ширину · двойной клик — поровну"
+                      : "Перетащите, чтобы изменить высоту · двойной клик — поровну"}
                   >
                     <span
                       aria-hidden="true"
                       className={cn(
-                        "w-px bg-border transition-[background-color,width] duration-150 group-hover:w-0.5 group-hover:bg-primary/70 group-focus-visible:w-0.5 group-focus-visible:bg-primary/70 motion-reduce:transition-none",
-                        isPaneResizing && "w-0.5 bg-primary",
+                        "bg-border transition-[background-color,width,height] duration-150 group-hover:bg-primary/70 group-focus-visible:bg-primary/70 motion-reduce:transition-none",
+                        splitAxis === "horizontal" ? "h-full w-px group-hover:w-0.5 group-focus-visible:w-0.5" : "h-px w-full group-hover:h-0.5 group-focus-visible:h-0.5",
+                        isPaneResizing && (splitAxis === "horizontal" ? "w-0.5 bg-primary" : "h-0.5 bg-primary"),
                       )}
                     />
                   </div>
                 ) : null}
-                {paneTabs.center ? renderWorkspacePane("center", paneTabs.center) : null}
-                {splitSlot === "right" && paneTabs.right ? renderWorkspacePane("right", paneTabs.right) : null}
 
                 {draggedTabPath && tabs.length >= 2 ? (
                   <div
                     aria-label="Области размещения вкладки"
-                    className="absolute inset-0 z-40 hidden grid-cols-2 gap-3 bg-background/15 p-3 backdrop-blur-[1px] lg:grid"
+                    className="absolute inset-0 z-40 grid cursor-grabbing grid-cols-2 grid-rows-[0.72fr_1fr_0.72fr] gap-2 bg-background/18 p-2 backdrop-blur-[1px]"
                     data-workspace-dock-overlay
                   >
-                    {(["left", "right"] as const).map((target) => {
+                    {(["top", "left", "right", "bottom"] as const).map((target) => {
                       const isTargeted = dockTarget === target;
-                      const DockIcon = target === "left" ? DockLeftIcon : DockRightIcon;
+                      const DockIcon = dockOptions.find((option) => option.value === target)?.Icon ?? DockLeftIcon;
                       return (
                         <div
-                          aria-label={`Открыть вкладку ${target === "left" ? "слева" : "справа"}`}
+                          aria-label={`Открыть вкладку ${dockTargetLabels[target]}`}
                           className={cn(
-                            "flex items-center justify-center rounded-lg border border-dashed transition-[background-color,border-color,box-shadow] duration-150 motion-reduce:transition-none",
+                            "flex items-center justify-center gap-2 rounded-md border border-dashed text-xs font-medium transition-[background-color,border-color,color,box-shadow] duration-150 motion-reduce:transition-none",
+                            (target === "top" || target === "bottom") && "col-span-2",
                             isTargeted
-                              ? "border-primary/80 bg-primary/10 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--primary)_28%,transparent)]"
-                              : "border-border/75 bg-background/45",
+                              ? "border-primary/80 bg-primary/10 text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--primary)_28%,transparent)]"
+                              : "border-border/75 bg-background/45 text-muted-foreground",
                           )}
                           data-workspace-dock-target={target}
                           key={target}
                         >
-                          <span className={cn(
-                            "flex items-center gap-2 rounded-md border bg-background/90 px-3 py-2 text-xs font-medium shadow-sm transition-[color,transform] duration-150 motion-reduce:transition-none",
-                            isTargeted ? "scale-[1.02] text-foreground" : "text-muted-foreground",
-                          )}>
-                            <DockIcon className="size-4" motion="none" />
-                            <span>{target === "left" ? "Открыть слева" : "Открыть справа"}</span>
-                          </span>
+                          <DockIcon className="size-4" motion="none" />
+                          <span className="hidden sm:inline">Открыть {dockTargetLabels[target]}</span>
                         </div>
                       );
                     })}
                   </div>
                 ) : null}
                 <span aria-live="polite" className="sr-only">
-                  {draggedTabPath ? "Выберите левую или правую область и отпустите вкладку" : ""}
+                  {draggedTabPath ? "Выберите сторону экрана и отпустите вкладку" : ""}
                 </span>
               </div>
             ) : (
@@ -2676,10 +2786,9 @@ function VaultWorkspace() {
             settings={(
               <PanelSettings
                 onHide={() => changePanelPresentation("hidden")}
+                onOpenSettings={() => setIsSettingsOpen(true)}
                 onPositionChange={setPanelPosition}
-                onThemeChange={setTheme}
                 position={panelPosition}
-                theme={theme}
               />
             )}
             view={libraryView}
@@ -2687,11 +2796,8 @@ function VaultWorkspace() {
         </aside>
       </div>
 
-      {message ? (
-        <p className={cn("fixed bottom-5 z-50 max-w-sm rounded-md bg-foreground px-3 py-2 text-sm text-background shadow-lg", panelPosition === "left" ? "right-5" : "left-5")} role="status">
-          {message}
-        </p>
-      ) : null}
+      <NotificationViewport style={notificationViewportStyle} />
+      <SettingsDialog onOpenChange={setIsSettingsOpen} open={isSettingsOpen} />
       </main>
 
       {formattingHint && typeof document !== "undefined" ? createPortal(

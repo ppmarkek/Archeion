@@ -13,3 +13,10 @@ release/
 graphify-out/
 .playwright-cli/
 data/
+/cache/
+/.cache/
+/.anchor/cache/
+/.npm/
+/.npm-cache/
+__pycache__/
+*.py[cod]

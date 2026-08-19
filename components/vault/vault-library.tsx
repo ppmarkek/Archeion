@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { useNotifications } from "@/components/notifications/notification-provider";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -353,6 +354,7 @@ function VaultLibrary({
   onPreviewItem,
   onPreviewEnd,
 }: VaultLibraryProps) {
+  const { notify } = useNotifications();
   const searchInputId = React.useId();
   const actionInputId = React.useId();
   const moveSelectId = React.useId();
@@ -378,7 +380,6 @@ function VaultLibrary({
   const [focusedPath, setFocusedPath] = React.useState<string | null>(selectedPath);
   const [draggedTarget, setDraggedTarget] = React.useState<VaultLibraryTarget | null>(null);
   const [dropState, setDropState] = React.useState<DropState | null>(null);
-  const [interactionMessage, setInteractionMessage] = React.useState("");
 
   const folderPaths = React.useMemo(
     () => collectFolderPaths(items, folders),
@@ -627,7 +628,6 @@ function VaultLibrary({
 
       setAction(null);
       setActionValue("");
-      setInteractionMessage("Готово.");
     } catch (error) {
       setActionError(errorText(error));
     } finally {
@@ -652,7 +652,11 @@ function VaultLibrary({
 
   async function moveTarget(target: VaultLibraryTarget, destination: string, beforePath?: string) {
     if (target.kind === "folder" && (destination === target.path || destination.startsWith(`${target.path}/`))) {
-      setInteractionMessage("Нельзя переместить папку внутрь самой себя.");
+      notify({
+        kind: "warning",
+        message: "Нельзя переместить папку внутрь самой себя.",
+        dedupeKey: "invalid-folder-move",
+      });
       return;
     }
 
@@ -662,10 +666,18 @@ function VaultLibrary({
 
     try {
       await onMove({ ...target, beforePath, destination });
-      setInteractionMessage(sourceDirectory === destination ? "Порядок обновлён." : "Объект перемещён.");
+      notify({
+        kind: "success",
+        message: sourceDirectory === destination ? "Порядок обновлён." : "Объект перемещён.",
+        dedupeKey: "move-library-item",
+      });
     } catch (error) {
       setOrder(previousOrder);
-      setInteractionMessage(errorText(error));
+      notify({
+        kind: "error",
+        message: errorText(error),
+        dedupeKey: "move-library-item-error",
+      });
     }
   }
 
@@ -1398,7 +1410,6 @@ function VaultLibrary({
             {compactExpandIcon}
           </button>
         </footer>
-        <span aria-live="polite" className="sr-only">{interactionMessage}</span>
         {sharedOverlays}
       </section>
     );
@@ -1505,7 +1516,6 @@ function VaultLibrary({
           </button>
           {settings ? <div className="flex max-h-24 w-full justify-center overflow-auto">{settings}</div> : null}
         </footer>
-        <span aria-live="polite" className="sr-only">{interactionMessage}</span>
         {sharedOverlays}
       </section>
     );
@@ -1521,8 +1531,8 @@ function VaultLibrary({
         openContextMenu(ROOT_TARGET, event.clientX, event.clientY);
       }}
     >
-      <header className="shrink-0 border-b bg-sidebar px-3 py-2.5">
-        <div className="flex min-h-9 min-w-0 items-center gap-2">
+      <header className="flex h-12 shrink-0 items-center border-b bg-sidebar px-3">
+        <div className="flex h-9 w-full min-w-0 items-center gap-2">
           <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground">
             <ArcheionMark className="size-4" />
           </span>
@@ -1553,7 +1563,7 @@ function VaultLibrary({
         </div>
       </header>
 
-      <div className="h-[6.625rem] shrink-0 border-b bg-sidebar px-3 py-[15px]">
+      <div className="h-25 shrink-0 border-b bg-sidebar px-3 py-3">
         <div className="relative">
           <label className="sr-only" htmlFor={searchInputId}>Поиск по Vault</label>
           <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" motion="none" />
@@ -1722,7 +1732,6 @@ function VaultLibrary({
         </footer>
       )}
 
-      <span aria-live="polite" className="sr-only">{interactionMessage}</span>
       {sharedOverlays}
     </section>
   );

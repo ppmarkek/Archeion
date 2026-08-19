@@ -1,0 +1,6 @@
+cache/
+logs/
+graphify/query-history.jsonl
+project.lock
+transactions/
+outbox/

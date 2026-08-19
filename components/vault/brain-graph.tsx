@@ -733,6 +733,7 @@ function BrainGraph({
   const [query, setQuery] = React.useState("");
   const [isLegendOpen, setIsLegendOpen] = React.useState(true);
   const [colorOverrides, setColorOverrides] = React.useState<Record<string, string>>({});
+  const atlasSectionRef = React.useRef<HTMLElement>(null);
 
   React.useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -742,11 +743,20 @@ function BrainGraph({
       } catch {
         window.localStorage.removeItem(COLOR_STORAGE_KEY);
       }
-
-      if (window.matchMedia("(max-width: 767px)").matches) setIsLegendOpen(false);
     });
     return () => window.cancelAnimationFrame(frame);
   }, []);
+
+  React.useEffect(() => {
+    const section = atlasSectionRef.current;
+    if (!section) return undefined;
+
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry.contentRect.width < 720) setIsLegendOpen(false);
+    });
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, [data]);
 
   React.useEffect(() => {
     const controller = new AbortController();
@@ -857,7 +867,7 @@ function BrainGraph({
   }
 
   return (
-    <section aria-label="Атлас — граф знаний" className="relative h-full min-h-[32rem] overflow-hidden bg-[var(--graph-background)]">
+    <section aria-label="Атлас — граф знаний" className="relative h-full min-h-[32rem] overflow-hidden bg-[var(--graph-background)]" ref={atlasSectionRef}>
       <div aria-hidden="true" className="absolute inset-0 brain-graph-field" />
 
       {data.nodes.length > 0 ? (

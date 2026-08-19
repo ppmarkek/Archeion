@@ -1,0 +1,5 @@
+{
+  "output": "graphify-out/",
+  "reason": "Graphify installation and project integration require explicit engineer approval.",
+  "status": "not-installed"
+}

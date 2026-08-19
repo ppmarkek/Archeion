@@ -1,0 +1,11 @@
+{
+  "category": "structure",
+  "created_at": "2026-08-19T00:25:53.289718+00:00",
+  "id": "baseline-structure-v1",
+  "rationale": "Rules require explicit engineer approval before enforcement.",
+  "scope": "project",
+  "source": "AnchorLoop baseline",
+  "status": "proposed",
+  "version": 1,
+  "wording": "Keep source roots, module entry points, dependency directions, generated files, and test placement explicit. Propose structural changes before applying them."
+}

@@ -9,6 +9,7 @@ import CheckSvg from "@iconify-react/line-md/confirm";
 import ChevronSmallLeftSvg from "@iconify-react/line-md/chevron-small-left";
 import ChevronSmallRightSvg from "@iconify-react/line-md/chevron-small-right";
 import CloseSmallSvg from "@iconify-react/line-md/close-small";
+import CogSvg from "@iconify-react/line-md/cog";
 import CompassSvg from "@iconify-react/line-md/compass";
 import DocumentListSvg from "@iconify-react/line-md/document-list";
 import EditSvg from "@iconify-react/line-md/edit";
@@ -27,6 +28,8 @@ import MonitorSvg from "@iconify-react/line-md/monitor";
 import PreviewSvg from "@iconify-react/line-md/monitor-screenshot";
 import MoonSvg from "@iconify-react/line-md/moon";
 import PlusSvg from "@iconify-react/line-md/plus";
+import QuestionCircleSvg from "@iconify-react/line-md/question-circle";
+import AlertCircleSvg from "@iconify-react/line-md/alert-circle";
 import SearchSvg from "@iconify-react/line-md/search";
 import SunnySvg from "@iconify-react/line-md/sunny-outline";
 import TrashSvg from "@iconify-react/line-md/trash";
@@ -65,6 +68,7 @@ const CheckIcon = createAppIcon(CheckSvg, "CheckIcon");
 const ChevronLeftIcon = createAppIcon(ChevronSmallLeftSvg, "ChevronLeftIcon");
 const ChevronRightIcon = createAppIcon(ChevronSmallRightSvg, "ChevronRightIcon");
 const CloseIcon = createAppIcon(CloseSmallSvg, "CloseIcon");
+const CogIcon = createAppIcon(CogSvg, "CogIcon");
 const CollectionIcon = createAppIcon(ListSvg, "CollectionIcon");
 const DockBottomIcon = createAppIcon(ArrowAlignBottomSvg, "DockBottomIcon");
 const DockLeftIcon = createAppIcon(ArrowAlignLeftSvg, "DockLeftIcon");
@@ -79,6 +83,7 @@ const FolderOpenIcon = createAppIcon(FolderArrowRightSvg, "FolderOpenIcon");
 const FolderPlusIcon = createAppIcon(FolderPlusSvg, "FolderPlusIcon");
 const GraphIcon = createAppIcon(CompassSvg, "GraphIcon");
 const HomeIcon = createAppIcon(HomeSimpleSvg, "HomeIcon");
+const InfoIcon = createAppIcon(QuestionCircleSvg, "InfoIcon");
 const LoadingIcon = createAppIcon(LoadingSvg, "LoadingIcon");
 const MinusIcon = createAppIcon(MinusSvg, "MinusIcon");
 const MonitorIcon = createAppIcon(MonitorSvg, "MonitorIcon");
@@ -90,6 +95,8 @@ const SearchIcon = createAppIcon(SearchSvg, "SearchIcon");
 const SunIcon = createAppIcon(SunnySvg, "SunIcon");
 const TrashIcon = createAppIcon(TrashSvg, "TrashIcon");
 const UploadIcon = createAppIcon(UploadSvg, "UploadIcon");
+const WarningIcon = createAppIcon(AlertCircleSvg, "WarningIcon");
+const ErrorIcon = createAppIcon(AlertCircleSvg, "ErrorIcon");
 
 export {
   ArcheionMark,
@@ -99,6 +106,7 @@ export {
   ChevronLeftIcon,
   ChevronRightIcon,
   CloseIcon,
+  CogIcon,
   CollectionIcon,
   DockBottomIcon,
   DockLeftIcon,
@@ -113,6 +121,7 @@ export {
   FolderPlusIcon,
   GraphIcon,
   HomeIcon,
+  InfoIcon,
   LoadingIcon,
   MinusIcon,
   MonitorIcon,
@@ -124,5 +133,7 @@ export {
   SunIcon,
   TrashIcon,
   UploadIcon,
+  WarningIcon,
+  ErrorIcon,
 };
 export type { AppIconProps };

@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-08-19T00:25:53.286257+00:00",
+  "detected_stack": [
+    "node"
+  ],
+  "graphify": {
+    "command": "graphify",
+    "status": "not-installed"
+  },
+  "name": "Archeion",
+  "ruleset_version": null,
+  "schema_version": 1,
+  "setup_mode": "add"
+}

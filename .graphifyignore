@@ -1,0 +1,9 @@
+.anchor/
+graphify-out/
+.env
+.env.*
+.venv/
+venv/
+node_modules/
+dist/
+build/
