@@ -12,4 +12,3 @@ export function AppProviders({ children }: Readonly<{ children: ReactNode }>) {
     </AppSettingsProvider>
   );
 }
-
