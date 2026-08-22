@@ -572,6 +572,7 @@ function VaultWorkspace() {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const canvasScrollRef = React.useRef<HTMLDivElement>(null);
   const openRequestsRef = React.useRef<Record<string, number>>({});
+  const openRequestSequenceRef = React.useRef(0);
   const hoverPreviewTimerRef = React.useRef<number | null>(null);
   const panelTransitionTimerRef = React.useRef<number | null>(null);
   const panelRef = React.useRef<HTMLElement>(null);
@@ -1057,7 +1058,8 @@ function VaultWorkspace() {
       return;
     }
 
-    const requestId = (openRequestsRef.current[item.path] ?? 0) + 1;
+    openRequestSequenceRef.current += 1;
+    const requestId = openRequestSequenceRef.current;
     openRequestsRef.current[item.path] = requestId;
     const nextTab: WorkspaceTab = {
       content: "",

@@ -9,6 +9,94 @@ test("the Vault opens with its isolated welcome Note", async ({ page }) => {
   )).toBeVisible();
 });
 
+test("a late read from a closed tab cannot overwrite a reopened Note", async ({ page }) => {
+  const title = "Stale read";
+  const path = `${title}.md`;
+  const firstReadStarted = Promise.withResolvers<void>();
+  const secondReadStarted = Promise.withResolvers<void>();
+  const staleReadCanFinish = Promise.withResolvers<void>();
+  let readAttempt = 0;
+
+  await page.goto("/vault");
+  await expect(page.getByRole("textbox", { name: "Редактор Markdown", exact: true })).toBeVisible();
+  await page.getByTitle("Создать заметку: Корень Vault").click();
+  const noteDialog = page.getByRole("dialog", { name: "Новая заметка" });
+  await noteDialog.getByLabel("Название заметки").fill(title);
+  await noteDialog.getByRole("button", { name: "Готово" }).click();
+
+  const libraryItem = page.locator(`[data-vault-library-path="${path}"]`);
+  const workspaceTab = page.locator(`[data-workspace-tab-path="${path}"]`);
+  const closeWorkspaceTab = page.getByRole("button", { name: `Закрыть ${title}`, exact: true });
+  await expect(libraryItem).toBeVisible();
+  await closeWorkspaceTab.click();
+  await expect(workspaceTab).toHaveCount(0);
+
+  await page.route("**/api/vault/note?*", async (route) => {
+    const request = route.request();
+    const requestedPath = new URL(request.url()).searchParams.get("path");
+    if (request.method() !== "GET" || requestedPath !== path) {
+      await route.continue();
+      return;
+    }
+
+    readAttempt += 1;
+    if (readAttempt === 1) {
+      firstReadStarted.resolve();
+      await staleReadCanFinish.promise;
+      await route.fulfill({
+        body: JSON.stringify({ content: "# Stale response" }),
+        contentType: "application/json",
+        headers: { "x-archeion-test-response": "stale" },
+        status: 200,
+      });
+      return;
+    }
+
+    if (readAttempt !== 2) throw new Error(`Unexpected Note read attempt: ${readAttempt}`);
+    secondReadStarted.resolve();
+
+    await route.fulfill({
+      body: JSON.stringify({ content: "# Fresh response" }),
+      contentType: "application/json",
+      status: 200,
+    });
+  });
+
+  try {
+    await libraryItem.dispatchEvent("click");
+    await firstReadStarted.promise;
+    await closeWorkspaceTab.click();
+    await expect(workspaceTab).toHaveCount(0);
+
+    await libraryItem.dispatchEvent("click");
+    await secondReadStarted.promise;
+    const editor = page.getByRole("textbox", { name: "Редактор Markdown", exact: true });
+    await expect(editor).toHaveValue("# Fresh response");
+
+    expect(readAttempt).toBe(2);
+    const staleResponsePromise = page.waitForResponse((response) => {
+      const responsePath = new URL(response.url()).searchParams.get("path");
+      return response.request().method() === "GET"
+        && responsePath === path
+        && response.headers()["x-archeion-test-response"] === "stale";
+    });
+    staleReadCanFinish.resolve();
+    const staleResponse = await staleResponsePromise;
+    await staleResponse.finished();
+    await page.evaluate(() => new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    }));
+
+    await expect(editor).toHaveValue("# Fresh response");
+  } finally {
+    staleReadCanFinish.resolve();
+    const cleanupResponse = await page.request.delete("/api/vault/item", {
+      data: { path },
+    });
+    expect(cleanupResponse.ok()).toBe(true);
+  }
+});
+
 test("a user can create, find, reorganize, and delete a Note", async ({ page }) => {
   await page.goto("/vault");
 

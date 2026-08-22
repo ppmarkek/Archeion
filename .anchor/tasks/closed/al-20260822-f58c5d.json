@@ -33,6 +33,7 @@
     "submodule_oids": {},
     "submodules": {}
   },
+  "close_digest": "sha256:406c48fe1149a2c357df5e470990528165ecbb980977e189e38a842700fad79c",
   "comprehension": {
     "baseline": {
       "at": "2026-08-22T00:48:31.010274+00:00",
@@ -40,9 +41,9 @@
       "statement": "\u043f\u043e\u0442\u043e\u043c\u0443 \u0447\u0442\u043e \u0442\u0430\u043a \u043b\u0435\u0433\u0447\u0435 \u043f\u043e\u043d\u044f\u0442\u044c \u0433\u0434\u0435 \u043e\u0448\u0438\u0431\u043a\u0430"
     },
     "recall_delay_hours": 24,
-    "recall_due_at": null,
+    "recall_due_at": "2026-08-23T03:01:19.343886+00:00",
     "verification_check": {
-      "at": "2026-08-22T02:00:59.604900+00:00",
+      "at": "2026-08-22T02:59:42.654807+00:00",
       "by": "Mark",
       "statement": "\u0434\u0435\u043a\u043e\u043c\u043f\u043e\u0437\u0438\u0446\u0438\u044f \u043c\u0435\u043d\u044f\u0435\u0442 \u0432\u043d\u0443\u0442\u0440\u0435\u043d\u043d\u044e\u044e \u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u0443, \u043d\u043e \u043d\u0435 \u043f\u043e\u0432\u0435\u0434\u0435\u043d\u0438\u0435 \u0438 \u0434\u0430\u043d\u043d\u044b\u0435 Vault"
     }
@@ -98,6 +99,41 @@
       "at": "2026-08-22T02:00:59.605161+00:00",
       "state": "verified",
       "type": "task.verify"
+    },
+    {
+      "at": "2026-08-22T02:25:33.426037+00:00",
+      "state": "review_ready",
+      "type": "task.quality.invalidated"
+    },
+    {
+      "at": "2026-08-22T02:30:40.338030+00:00",
+      "state": "quality_checked",
+      "type": "task.precommit"
+    },
+    {
+      "at": "2026-08-22T02:34:44.661655+00:00",
+      "state": "implementing",
+      "type": "task.revise.implement"
+    },
+    {
+      "at": "2026-08-22T02:57:12.691965+00:00",
+      "state": "review_ready",
+      "type": "task.review"
+    },
+    {
+      "at": "2026-08-22T02:57:21.541715+00:00",
+      "state": "quality_checked",
+      "type": "task.precommit"
+    },
+    {
+      "at": "2026-08-22T02:59:42.655080+00:00",
+      "state": "verified",
+      "type": "task.verify"
+    },
+    {
+      "at": "2026-08-22T03:01:19.344420+00:00",
+      "state": "closed",
+      "type": "task.close"
     }
   ],
   "human_artifact": {
@@ -108,9 +144,11 @@
   },
   "id": "al-20260822-f58c5d",
   "metrics": {
+    "closed_at": "2026-08-22T03:01:19.343886+00:00",
     "mode": "CAREFUL",
     "plan_recorded_at": "2026-08-22T00:48:31.010274+00:00",
-    "task_type": "refactor"
+    "task_type": "refactor",
+    "wall_seconds": 9074.824166
   },
   "mode": "CAREFUL",
   "plan": {
@@ -127,6 +165,11 @@
     "rollback_mitigation": "\u043f\u0435\u0440\u0435\u0434\u0435\u043b\u044b\u0432\u0430\u0435\u043c",
     "summary": "\u0414\u0435\u043a\u043e\u043c\u043f\u043e\u0437\u0438\u0440\u043e\u0432\u0430\u0442\u044c vault-workspace.tsx \u043f\u043e\u0432\u0435\u0434\u0435\u043d\u0447\u0435\u0441\u043a\u0438 \u043d\u0435\u0439\u0442\u0440\u0430\u043b\u044c\u043d\u044b\u043c\u0438 TDD-\u0441\u0440\u0435\u0437\u0430\u043c\u0438: \u0441\u043d\u0430\u0447\u0430\u043b\u0430 \u0437\u0430\u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u0442\u044c baseline, \u0437\u0430\u0442\u0435\u043c \u0432\u044b\u043d\u0435\u0441\u0442\u0438 \u0447\u0438\u0441\u0442\u0443\u044e workspace model \u0441 \u0438\u043d\u0432\u0430\u0440\u0438\u0430\u043d\u0442\u0430\u043c\u0438 \u0432\u043a\u043b\u0430\u0434\u043e\u043a, \u043f\u0430\u043d\u0435\u043b\u0435\u0439 \u0438 path remap, \u0434\u043e\u0431\u0430\u0432\u0438\u0442\u044c VaultPort \u0441 HTTP/in-memory Adapter \u0438 \u0441\u043e\u0432\u043c\u0435\u0441\u0442\u0438\u043c\u044b\u0439 storage Adapter, \u043f\u043e\u0441\u043b\u0435 \u0447\u0435\u0433\u043e \u043f\u0435\u0440\u0435\u043d\u0435\u0441\u0442\u0438 async orchestration \u0432\u043e \u0432\u043d\u0443\u0442\u0440\u0435\u043d\u043d\u0438\u0439 runtime, \u043e\u0441\u0442\u0430\u0432\u0438\u0432 \u0432\u043d\u0435\u0448\u043d\u0438\u0439 VaultWorkspace Interface, DOM \u0438 UX \u043d\u0435\u0438\u0437\u043c\u0435\u043d\u043d\u044b\u043c\u0438.",
     "verification_strategy": "\u0421\u043d\u0430\u0447\u0430\u043b\u0430 \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0437\u0435\u043b\u0451\u043d\u044b\u0439 baseline. \u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c unit-\u0442\u0435\u0441\u0442\u044b Interface \u0434\u043b\u044f pane normalization, stored-state sanitation, docking, dirty close, stale read/save \u0438 subtree path remap; \u0437\u0430\u0442\u0435\u043c \u043f\u0440\u043e\u0439\u0442\u0438 npm run test:unit, npm run test:api, npm run test:e2e, npm run typecheck, npm run lint, npm run build -- --webpack \u0438 git diff --check. \u041f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c \u043d\u0435\u0438\u0437\u043c\u0435\u043d\u043d\u043e\u0441\u0442\u044c \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044e\u0449\u0438\u0445 ARIA/data selectors \u0438 browser regression \u0434\u043b\u044f \u0432\u043a\u043b\u0430\u0434\u043e\u043a, docking, resize, per-tab editor modes \u0438 reload."
+  },
+  "post_close_integrity": {
+    "format_version": 1,
+    "head_digest": "sha256:406c48fe1149a2c357df5e470990528165ecbb980977e189e38a842700fad79c",
+    "head_sequence": 0
   },
   "quality": [
     {
@@ -218,6 +261,96 @@
         "head": "793109ed16c0d14a011485420ffe1d83a27dc27e",
         "source": "git-materialized"
       }
+    },
+    {
+      "advisories": [
+        "No project-specific formatter, linter, type checker, test runner, or dependency scanner is configured yet.",
+        "DRY, KISS, YAGNI, SOLID, and architecture findings require concrete diff evidence and engineer review."
+      ],
+      "checks": [
+        {
+          "name": "python-syntax",
+          "status": "passed"
+        },
+        {
+          "detail": "security rule is not approved for this task",
+          "name": "secret-baseline",
+          "status": "not-run"
+        },
+        {
+          "name": "git-baseline-diff-check",
+          "status": "passed"
+        },
+        {
+          "name": "git-diff-check",
+          "status": "passed"
+        },
+        {
+          "name": "git-cached-diff-check",
+          "status": "passed"
+        },
+        {
+          "name": "workspace-stability",
+          "status": "passed"
+        }
+      ],
+      "findings": [],
+      "status": "passed",
+      "workspace_fingerprint": {
+        "algorithm": "sha256",
+        "content_digest": "sha256:b43a6af75f249e0be6deaf220248163940f0ebd1b991e90c916c9e39e84855ae",
+        "digest": "sha256:b43a6af75f249e0be6deaf220248163940f0ebd1b991e90c916c9e39e84855ae",
+        "files": 111,
+        "format_version": 3,
+        "git_state_digest": "sha256:4fac8f5b0273f7be7798eaae46218ff5ad4029a6acddfc441685345b726f4914",
+        "head": "f461805a051959a5db3f306000bfcd60419f8d88",
+        "source": "git-materialized"
+      }
+    },
+    {
+      "advisories": [
+        "No project-specific formatter, linter, type checker, test runner, or dependency scanner is configured yet.",
+        "DRY, KISS, YAGNI, SOLID, and architecture findings require concrete diff evidence and engineer review."
+      ],
+      "checks": [
+        {
+          "name": "python-syntax",
+          "status": "passed"
+        },
+        {
+          "detail": "security rule is not approved for this task",
+          "name": "secret-baseline",
+          "status": "not-run"
+        },
+        {
+          "name": "git-baseline-diff-check",
+          "status": "passed"
+        },
+        {
+          "name": "git-diff-check",
+          "status": "passed"
+        },
+        {
+          "name": "git-cached-diff-check",
+          "status": "passed"
+        },
+        {
+          "name": "workspace-stability",
+          "status": "passed"
+        }
+      ],
+      "findings": [],
+      "status": "passed",
+      "workspace_fingerprint": {
+        "algorithm": "sha256",
+        "content_digest": "sha256:de150774687b8e18cc4982b476d4b5d3ace492e551b2a6a50d867fbf90224299",
+        "digest": "sha256:de150774687b8e18cc4982b476d4b5d3ace492e551b2a6a50d867fbf90224299",
+        "files": 111,
+        "format_version": 3,
+        "git_state_digest": "sha256:24cdffe3c1012227adaa9fd38d81ef6a06fa0701448c4004285b836181f70fd4",
+        "head": "f461805a051959a5db3f306000bfcd60419f8d88",
+        "source": "git-materialized"
+      }
     }
   ],
   "quality_invalidations": [
@@ -244,6 +377,176 @@
         "head": "793109ed16c0d14a011485420ffe1d83a27dc27e",
         "source": "git-materialized"
       }
+    },
+    {
+      "at": "2026-08-22T02:25:33.425879+00:00",
+      "current_fingerprint": {
+        "algorithm": "sha256",
+        "content_digest": "sha256:b43a6af75f249e0be6deaf220248163940f0ebd1b991e90c916c9e39e84855ae",
+        "digest": "sha256:b43a6af75f249e0be6deaf220248163940f0ebd1b991e90c916c9e39e84855ae",
+        "files": 111,
+        "format_version": 3,
+        "git_state_digest": "sha256:4fac8f5b0273f7be7798eaae46218ff5ad4029a6acddfc441685345b726f4914",
+        "head": "f461805a051959a5db3f306000bfcd60419f8d88",
+        "source": "git-materialized"
+      },
+      "reason": "Code changed after the quality gate.",
+      "recorded_fingerprint": {
+        "algorithm": "sha256",
+        "content_digest": "sha256:c2b3a485ab2caa1f4bb733dd24dc4274dc14beec753b818e5628121797c9cf55",
+        "digest": "sha256:c2b3a485ab2caa1f4bb733dd24dc4274dc14beec753b818e5628121797c9cf55",
+        "files": 111,
+        "format_version": 3,
+        "git_state_digest": "sha256:7f58ca440490b4e22a240ab4ecc1d87908071c97daecbce13da67fbfc0203502",
+        "head": "793109ed16c0d14a011485420ffe1d83a27dc27e",
+        "source": "git-materialized"
+      }
+    }
+  ],
+  "revisions": [
+    {
+      "at": "2026-08-22T02:34:44.661609+00:00",
+      "previous_state": "quality_checked",
+      "quality": [
+        {
+          "advisories": [
+            "No project-specific formatter, linter, type checker, test runner, or dependency scanner is configured yet.",
+            "DRY, KISS, YAGNI, SOLID, and architecture findings require concrete diff evidence and engineer review."
+          ],
+          "checks": [
+            {
+              "name": "python-syntax",
+              "status": "passed"
+            },
+            {
+              "detail": "security rule is not approved for this task",
+              "name": "secret-baseline",
+              "status": "not-run"
+            },
+            {
+              "name": "git-baseline-diff-check",
+              "status": "passed"
+            },
+            {
+              "name": "git-diff-check",
+              "status": "passed"
+            },
+            {
+              "name": "git-cached-diff-check",
+              "status": "passed"
+            },
+            {
+              "name": "workspace-stability",
+              "status": "passed"
+            }
+          ],
+          "findings": [],
+          "status": "passed",
+          "workspace_fingerprint": {
+            "algorithm": "sha256",
+            "content_digest": "sha256:20345250089b678aee534c551d9cbc8b3177b90f242b57b0123e6f220fdbdfe6",
+            "digest": "sha256:20345250089b678aee534c551d9cbc8b3177b90f242b57b0123e6f220fdbdfe6",
+            "files": 111,
+            "format_version": 3,
+            "git_state_digest": "sha256:4ec1c0aa5fc86e9bebf5a1b33cd627a3c03f4484c60404c395020856ac48b539",
+            "head": "793109ed16c0d14a011485420ffe1d83a27dc27e",
+            "source": "git-materialized"
+          }
+        },
+        {
+          "advisories": [
+            "No project-specific formatter, linter, type checker, test runner, or dependency scanner is configured yet.",
+            "DRY, KISS, YAGNI, SOLID, and architecture findings require concrete diff evidence and engineer review."
+          ],
+          "checks": [
+            {
+              "name": "python-syntax",
+              "status": "passed"
+            },
+            {
+              "detail": "security rule is not approved for this task",
+              "name": "secret-baseline",
+              "status": "not-run"
+            },
+            {
+              "name": "git-baseline-diff-check",
+              "status": "passed"
+            },
+            {
+              "name": "git-diff-check",
+              "status": "passed"
+            },
+            {
+              "name": "git-cached-diff-check",
+              "status": "passed"
+            },
+            {
+              "name": "workspace-stability",
+              "status": "passed"
+            }
+          ],
+          "findings": [],
+          "status": "passed",
+          "workspace_fingerprint": {
+            "algorithm": "sha256",
+            "content_digest": "sha256:c2b3a485ab2caa1f4bb733dd24dc4274dc14beec753b818e5628121797c9cf55",
+            "digest": "sha256:c2b3a485ab2caa1f4bb733dd24dc4274dc14beec753b818e5628121797c9cf55",
+            "files": 111,
+            "format_version": 3,
+            "git_state_digest": "sha256:7f58ca440490b4e22a240ab4ecc1d87908071c97daecbce13da67fbfc0203502",
+            "head": "793109ed16c0d14a011485420ffe1d83a27dc27e",
+            "source": "git-materialized"
+          }
+        },
+        {
+          "advisories": [
+            "No project-specific formatter, linter, type checker, test runner, or dependency scanner is configured yet.",
+            "DRY, KISS, YAGNI, SOLID, and architecture findings require concrete diff evidence and engineer review."
+          ],
+          "checks": [
+            {
+              "name": "python-syntax",
+              "status": "passed"
+            },
+            {
+              "detail": "security rule is not approved for this task",
+              "name": "secret-baseline",
+              "status": "not-run"
+            },
+            {
+              "name": "git-baseline-diff-check",
+              "status": "passed"
+            },
+            {
+              "name": "git-diff-check",
+              "status": "passed"
+            },
+            {
+              "name": "git-cached-diff-check",
+              "status": "passed"
+            },
+            {
+              "name": "workspace-stability",
+              "status": "passed"
+            }
+          ],
+          "findings": [],
+          "status": "passed",
+          "workspace_fingerprint": {
+            "algorithm": "sha256",
+            "content_digest": "sha256:b43a6af75f249e0be6deaf220248163940f0ebd1b991e90c916c9e39e84855ae",
+            "digest": "sha256:b43a6af75f249e0be6deaf220248163940f0ebd1b991e90c916c9e39e84855ae",
+            "files": 111,
+            "format_version": 3,
+            "git_state_digest": "sha256:4fac8f5b0273f7be7798eaae46218ff5ad4029a6acddfc441685345b726f4914",
+            "head": "f461805a051959a5db3f306000bfcd60419f8d88",
+            "source": "git-materialized"
+          }
+        }
+      ],
+      "reason": "Fix the stale open-read race found during review before close",
+      "target": "implement",
+      "verification": null
     }
   ],
   "ruleset": {
@@ -252,16 +555,16 @@
     "version": "ruleset-e15da02dc403"
   },
   "schema_version": 2,
-  "state": "verified",
+  "state": "closed",
   "task_type": "refactor",
   "title": "Decompose Vault workspace",
   "verification": {
-    "at": "2026-08-22T02:00:59.605005+00:00",
+    "at": "2026-08-22T02:59:42.654914+00:00",
     "by": "Mark",
-    "comprehension_digest": "sha256:18b954b2ed8bb8ccc7e49c5f58623a4a11449a31ad9655301f758614a9c87f4b",
+    "comprehension_digest": "sha256:7ee4e9d27ee84fc4f49ce97f37721ecdb5a5a217a1de6801012159ef44491194",
     "provenance": "audit",
-    "reason": "\u043f\u043e\u0442\u043e\u043c\u0443 \u0447\u0442\u043e \u043f\u043e\u0447\u0442\u0438 \u0432\u0441\u0435 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u043a\u0430\u043a \u043d\u0443\u0436\u043d\u043e, \u043d\u043e \u0435\u0441\u0442\u044c \u043a\u0430\u0441\u044f\u043a \u0441\u0434\u0435\u043b\u0430\u0439 \u0447\u0442\u043e\u0431\u044b \u0442\u0430\u043c \u0433\u0434\u0435 \u043c\u043d\u043e\u0433\u043e \u0432\u043a\u043b\u0430\u0434\u043e\u043a \u0442\u043e \u043d\u0430\u0432\u0435\u0434\u044f\u0441\u044c \u0438 \u043d\u0430\u0436\u0430\u0432 \u043f\u043a\u043c \u043c\u043e\u0436\u043d\u043e \u0431\u044b\u043b\u043e \u0443\u0431\u0440\u0430\u0442\u044c \u044d\u0442\u0443 \u0432\u043a\u043b\u0430\u0434\u043a\u0443 \u0438\u0437 \u0441\u043f\u043b\u0438\u0442\u0430, \u0438 \u0441\u0434\u0435\u043b\u0430\u0439 \u0447\u0442\u043e\u0431\u044b \u044f \u0441\u043c\u043e\u0433 \u0438\u0437 \u0441\u043e\u0432\u043c\u0435\u0441\u0442\u043d\u043e\u0433\u043e \u0442\u0430\u0431\u0430 \u043f\u0440\u043e\u0441\u0442\u043e \u0432\u0437\u044f\u0442\u044c \u0438 \u043f\u0435\u0440\u0435\u043c\u0435\u0441\u0442\u0438\u0442\u044c \u0432\u043a\u043b\u0430\u0434\u043a\u0443 \u0438\u0437 \u0441\u043e\u0432\u043c\u0435\u0441\u0442\u043d\u043e\u0439.",
-    "record_digest": "sha256:e08304dd0880ff3ca144ad3f3deac2b068528ea179b709bd9951d46d2fb443b6",
+    "reason": "\u0441\u0442\u0430\u0440\u044b\u0439 \u043e\u0442\u0432\u0435\u0442 \u0431\u043e\u043b\u044c\u0448\u0435 \u043d\u0435 \u043f\u0435\u0440\u0435\u0437\u0430\u043f\u0438\u0441\u044b\u0432\u0430\u0435\u0442 \u043f\u043e\u0432\u0442\u043e\u0440\u043d\u043e \u043e\u0442\u043a\u0440\u044b\u0442\u0443\u044e \u0437\u0430\u043c\u0435\u0442\u043a\u0443",
+    "record_digest": "sha256:45045a0346cb41237046b6794ca7b61c7e25ba1f13010db0d91ac27796acef99",
     "reported_metrics": {
       "active_minutes": null,
       "agent_model": null,
@@ -272,6 +575,31 @@
       "provenance": null
     },
     "result": "pass",
-    "subject_digest": "sha256:d65e5ceec2a928e9e8a3e660b1a301d219e522b789a2fbf82160d03ebef0f5bf"
-  }
+    "subject_digest": "sha256:4549dfefdbd088d64b379dd55f0d4420b501294995d50ccc10d251f3e3cd63f4"
+  },
+  "verification_invalidations": [
+    {
+      "at": "2026-08-22T02:25:33.425846+00:00",
+      "reason": "Code changed after the quality gate.",
+      "verification": {
+        "at": "2026-08-22T02:00:59.605005+00:00",
+        "by": "Mark",
+        "comprehension_digest": "sha256:18b954b2ed8bb8ccc7e49c5f58623a4a11449a31ad9655301f758614a9c87f4b",
+        "provenance": "audit",
+        "reason": "\u043f\u043e\u0442\u043e\u043c\u0443 \u0447\u0442\u043e \u043f\u043e\u0447\u0442\u0438 \u0432\u0441\u0435 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u043a\u0430\u043a \u043d\u0443\u0436\u043d\u043e, \u043d\u043e \u0435\u0441\u0442\u044c \u043a\u0430\u0441\u044f\u043a \u0441\u0434\u0435\u043b\u0430\u0439 \u0447\u0442\u043e\u0431\u044b \u0442\u0430\u043c \u0433\u0434\u0435 \u043c\u043d\u043e\u0433\u043e \u0432\u043a\u043b\u0430\u0434\u043e\u043a \u0442\u043e \u043d\u0430\u0432\u0435\u0434\u044f\u0441\u044c \u0438 \u043d\u0430\u0436\u0430\u0432 \u043f\u043a\u043c \u043c\u043e\u0436\u043d\u043e \u0431\u044b\u043b\u043e \u0443\u0431\u0440\u0430\u0442\u044c \u044d\u0442\u0443 \u0432\u043a\u043b\u0430\u0434\u043a\u0443 \u0438\u0437 \u0441\u043f\u043b\u0438\u0442\u0430, \u0438 \u0441\u0434\u0435\u043b\u0430\u0439 \u0447\u0442\u043e\u0431\u044b \u044f \u0441\u043c\u043e\u0433 \u0438\u0437 \u0441\u043e\u0432\u043c\u0435\u0441\u0442\u043d\u043e\u0433\u043e \u0442\u0430\u0431\u0430 \u043f\u0440\u043e\u0441\u0442\u043e \u0432\u0437\u044f\u0442\u044c \u0438 \u043f\u0435\u0440\u0435\u043c\u0435\u0441\u0442\u0438\u0442\u044c \u0432\u043a\u043b\u0430\u0434\u043a\u0443 \u0438\u0437 \u0441\u043e\u0432\u043c\u0435\u0441\u0442\u043d\u043e\u0439.",
+        "record_digest": "sha256:e08304dd0880ff3ca144ad3f3deac2b068528ea179b709bd9951d46d2fb443b6",
+        "reported_metrics": {
+          "active_minutes": null,
+          "agent_model": null,
+          "agent_provider": null,
+          "agent_turns": null,
+          "input_tokens": null,
+          "output_tokens": null,
+          "provenance": null
+        },
+        "result": "pass",
+        "subject_digest": "sha256:d65e5ceec2a928e9e8a3e660b1a301d219e522b789a2fbf82160d03ebef0f5bf"
+      }
+    }
+  ]
 }
