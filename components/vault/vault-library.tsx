@@ -40,27 +40,19 @@ import {
   TrashIcon,
   UploadIcon,
 } from "@/components/vault/vault-icons";
+import type {
+  VaultItem,
+  VaultSearchMatch,
+  VaultSearchResult,
+} from "@/components/vault/vault-types";
 import { cn } from "@/lib/utils";
 
 export type VaultLibraryPresentation = "expanded" | "compact" | "hidden";
 export type VaultLibraryView = "tree" | "all";
 export type VaultLibraryNodeKind = "file" | "folder";
-export type VaultLibrarySearchMatch = "name" | "path" | "content";
-
-export type VaultLibraryItem = {
-  path: string;
-  name: string;
-  kind: "note" | "attachment";
-  mimeType: string;
-  size: number;
-  updatedAt: string;
-};
-
-export type VaultLibrarySearchResult = {
-  item: VaultLibraryItem;
-  match: VaultLibrarySearchMatch;
-  snippet?: string;
-};
+export type VaultLibrarySearchMatch = VaultSearchMatch;
+export type VaultLibraryItem = VaultItem;
+export type VaultLibrarySearchResult = VaultSearchResult;
 
 export type VaultLibraryCreateInput = {
   directory: string;

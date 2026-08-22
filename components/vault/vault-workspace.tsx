@@ -20,14 +20,48 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { BrainGraph } from "@/components/vault/brain-graph";
 import {
+  createHttpVaultAdapter,
+  type VaultFolder,
+  type VaultMutation,
+  VaultOperationError,
+} from "@/components/vault/vault-client";
+import {
   VaultLibrary,
   type VaultLibraryCreateInput,
-  type VaultLibraryItem,
   type VaultLibraryMoveInput,
   type VaultLibraryPresentation,
-  type VaultLibrarySearchResult,
   type VaultLibraryTarget,
 } from "@/components/vault/vault-library";
+import {
+  closeWorkspaceTab,
+  dockTargetFromPoint,
+  dockWorkspaceTab,
+  emptyPaneTabs,
+  MAX_WORKSPACE_TABS,
+  normalisePaneGeometry,
+  paneForPath,
+  paneSlots,
+  pathIsWithin,
+  pointIsWithinRect,
+  remapPath,
+  resolveWorkspaceTabDrop,
+  removeWorkspaceTarget,
+  tabStripAutoScrollDelta,
+  undockWorkspaceTab,
+  visiblePaneCount,
+  workspaceTabStripPaths,
+  type DockTarget,
+  type EditorMode,
+  type PaneSlot,
+  type PaneTabs,
+  type PathChange,
+  type WorkspaceState,
+  type WorkspaceTab as WorkspaceModelTab,
+  type WorkspaceTabDropPosition,
+} from "@/components/vault/workspace-model";
+import { restoreWorkspace } from "@/components/vault/workspace-runtime";
+import { createWorkspaceStorage } from "@/components/vault/workspace-storage";
+import type { VaultItem, VaultSearchResult } from "@/components/vault/vault-types";
 import {
   AttachmentIcon,
   CheckIcon,
@@ -48,55 +82,22 @@ import {
 import type { AppIconProps } from "@/components/vault/vault-icons";
 import { cn, formatRussianCount } from "@/lib/utils";
 
-type VaultEntry = VaultLibraryItem;
+type VaultEntry = VaultItem;
 
-type VaultFolderEntry = {
-  path: string;
-  name: string;
-  kind: "folder";
-  updatedAt: string;
-};
+type VaultFolderEntry = VaultFolder;
 
-type ApiError = {
-  error?: unknown;
-};
-
-type EditorMode = "edit" | "split" | "preview";
 type WorkspaceView = "document" | "brain";
 type PanelPosition = "left" | "right" | "top" | "bottom";
-type PaneSlot = "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
-type DockTarget = PanelPosition;
 type PaneSplitAxis = "horizontal" | "vertical";
 type TextFormat = "bold" | "italic" | "heading" | "list" | "quote" | "link";
 type LibraryView = "tree" | "all";
 
-type WorkspaceTab = {
-  content: string;
-  editorMode: EditorMode;
-  isLoading: boolean;
-  item: VaultEntry;
-  savedContent: string;
-};
-
-type PaneTabs = Record<PaneSlot, string | null>;
-
-type StoredWorkspace = {
-  activePath?: unknown;
-  focusedPane?: unknown;
-  openPaths?: unknown;
-  panes?: unknown;
-  splitRatio?: unknown;
-};
+type WorkspaceTab = WorkspaceModelTab<VaultEntry>;
 
 type StoredLibrary = {
   expandedFolders?: unknown;
   order?: unknown;
   view?: unknown;
-};
-
-type PathChange = {
-  from: string;
-  to: string;
 };
 
 type FormattingHint = {
@@ -108,6 +109,17 @@ type HoverPreview = {
   item: VaultEntry;
   left: number;
   top: number;
+};
+
+type TabContextMenu = {
+  path: string;
+  x: number;
+  y: number;
+};
+
+type TabDropIndicator = {
+  position: "before" | "end";
+  targetPath: string | null;
 };
 
 type DocumentHeading = {
@@ -140,13 +152,9 @@ type TabDragSession = {
   started: boolean;
 };
 
-const MAX_OPEN_TABS = 8;
 const PANEL_VISIBILITY_TRANSITION_MS = 180;
-const WORKSPACE_STORAGE_KEY = "archeion-workspace-v1";
-const PANEL_MODE_STORAGE_KEY = "archeion-panel-mode-v2";
-const PANEL_SIZE_STORAGE_KEY = "archeion-panel-size-v1";
-const LEGACY_PANEL_COMPACT_STORAGE_KEY = "archeion-panel-compact";
-const LIBRARY_STORAGE_KEY = "archeion-library-v1";
+const TAB_DOCK_HORIZONTAL_MARGIN = 64;
+const TAB_DOCK_VERTICAL_MARGIN = 24;
 const PANEL_SIDE_DEFAULT_SIZE = 288;
 const PANEL_SIDE_MIN_SIZE = 248;
 const PANEL_SIDE_MAX_SIZE = 480;
@@ -160,13 +168,6 @@ const SCROLLBAR_HIDE_DELAY_MS = 700;
 const SCROLLBAR_FADE_MS = 180;
 type ScrollbarTimers = { fade?: number; hide?: number };
 const scrollbarTimers = new WeakMap<HTMLElement, ScrollbarTimers>();
-const paneSlots: PaneSlot[] = ["topLeft", "topRight", "bottomLeft", "bottomRight"];
-const emptyPaneTabs: PaneTabs = {
-  bottomLeft: null,
-  bottomRight: null,
-  topLeft: null,
-  topRight: null,
-};
 
 function revealScrollbar(element: HTMLElement) {
   const timers = scrollbarTimers.get(element) ?? {};
@@ -209,20 +210,6 @@ const dockTargetLabels: Record<DockTarget, string> = {
   left: "слева",
   right: "справа",
   top: "сверху",
-};
-
-const dockTargetSlots: Record<DockTarget, readonly [PaneSlot, PaneSlot]> = {
-  bottom: ["bottomLeft", "topLeft"],
-  left: ["topLeft", "topRight"],
-  right: ["topRight", "topLeft"],
-  top: ["topLeft", "bottomLeft"],
-};
-
-const dockEdgeSlots: Record<DockTarget, readonly PaneSlot[]> = {
-  bottom: ["bottomLeft", "bottomRight"],
-  left: ["topLeft", "bottomLeft"],
-  right: ["topRight", "bottomRight"],
-  top: ["topLeft", "topRight"],
 };
 
 const formatOptions: Array<{
@@ -276,158 +263,9 @@ function parentFolder(path: string) {
   return lastSlash === -1 ? "" : path.slice(0, lastSlash);
 }
 
-function folderLabel(path: string) {
-  if (!path) return "Корень";
-  const name = path.split("/").at(-1) ?? path;
-  return name === "attachments" ? "Вложения" : name;
-}
-
-function collectFolders(items: VaultEntry[]) {
-  const folders = new Set<string>([""]);
-
-  for (const item of items) {
-    const parts = item.path.split("/");
-    for (let index = 1; index < parts.length; index += 1) {
-      folders.add(parts.slice(0, index).join("/"));
-    }
-  }
-
-  return [...folders].sort((left, right) => {
-    if (!left) return -1;
-    if (!right) return 1;
-    return left.localeCompare(right, "ru");
-  });
-}
-
 function folderAncestors(folder: string) {
   const parts = folder.split("/").filter(Boolean);
   return parts.map((_, index) => parts.slice(0, index + 1).join("/"));
-}
-
-function remapPath(path: string, changes: readonly PathChange[]) {
-  const orderedChanges = [...changes].sort((left, right) => right.from.length - left.from.length);
-  const change = orderedChanges.find(({ from }) => path === from || path.startsWith(`${from}/`));
-  if (!change) return path;
-  return path === change.from ? change.to : `${change.to}${path.slice(change.from.length)}`;
-}
-
-function pathIsWithin(path: string, parent: string) {
-  return path === parent || path.startsWith(`${parent}/`);
-}
-
-function paneForPath(panes: PaneTabs, path: string) {
-  return paneSlots.find((slot) => panes[slot] === path) ?? null;
-}
-
-function visiblePaneCount(panes: PaneTabs) {
-  return paneSlots.reduce((count, slot) => count + (panes[slot] ? 1 : 0), 0);
-}
-
-function normalisePaneGeometry(panes: PaneTabs): PaneTabs {
-  if (visiblePaneCount(panes) !== 2) return panes;
-
-  if (panes.topLeft && panes.bottomRight) {
-    return { ...emptyPaneTabs, topLeft: panes.topLeft, topRight: panes.bottomRight };
-  }
-
-  if (panes.topRight && panes.bottomLeft) {
-    return { ...emptyPaneTabs, topLeft: panes.bottomLeft, topRight: panes.topRight };
-  }
-
-  return panes;
-}
-
-function dockTargetFromPoint(rect: DOMRect, clientX: number, clientY: number): DockTarget {
-  const distances: Record<DockTarget, number> = {
-    bottom: rect.bottom - clientY,
-    left: clientX - rect.left,
-    right: rect.right - clientX,
-    top: clientY - rect.top,
-  };
-
-  return (Object.entries(distances) as Array<[DockTarget, number]>).reduce(
-    (nearest, candidate) => candidate[1] < nearest[1] ? candidate : nearest,
-  )[0];
-}
-
-function isPaneSlot(value: unknown): value is PaneSlot {
-  return value === "topLeft" || value === "topRight" || value === "bottomLeft" || value === "bottomRight";
-}
-
-function sanitiseStoredWorkspace(value: string | null, items: VaultEntry[]) {
-  let stored: StoredWorkspace = {};
-  try {
-    stored = value ? JSON.parse(value) as StoredWorkspace : {};
-  } catch {
-    stored = {};
-  }
-
-  const itemPaths = new Set(items.map((item) => item.path));
-  const openPaths = Array.isArray(stored.openPaths)
-    ? stored.openPaths.filter((path): path is string => typeof path === "string" && itemPaths.has(path)).slice(0, MAX_OPEN_TABS)
-    : [];
-
-  if (openPaths.length === 0) {
-    const firstNote = items.find((item) => item.kind === "note") ?? items[0];
-    if (firstNote) openPaths.push(firstNote.path);
-  }
-
-  const storedActivePath = typeof stored.activePath === "string" && openPaths.includes(stored.activePath)
-    ? stored.activePath
-    : openPaths[0] ?? null;
-  const activePath = storedActivePath;
-  const storedPanes = stored.panes && typeof stored.panes === "object"
-    ? stored.panes as Record<string, unknown>
-    : {};
-  const panes: PaneTabs = { ...emptyPaneTabs };
-  const claimedPaths = new Set<string>();
-  const claimPane = (slot: PaneSlot, candidate: unknown) => {
-    if (typeof candidate !== "string" || !openPaths.includes(candidate) || claimedPaths.has(candidate)) return;
-    panes[slot] = candidate;
-    claimedPaths.add(candidate);
-  };
-
-  // Current four-cell layouts are restored verbatim. The legacy three-position
-  // layout is migrated into the nearest equivalent cell arrangement.
-  for (const slot of paneSlots) claimPane(slot, storedPanes[slot]);
-  if (visiblePaneCount(panes) === 0) {
-    const center = typeof storedPanes.center === "string" && openPaths.includes(storedPanes.center)
-      ? storedPanes.center
-      : activePath;
-    const left = storedPanes.left;
-    const right = storedPanes.right;
-    const top = storedPanes.top;
-    const bottom = storedPanes.bottom;
-
-    if (typeof center === "string") claimPane("topLeft", center);
-    claimPane("topLeft", left);
-    claimPane("topRight", right);
-    claimPane("bottomLeft", bottom);
-    claimPane("topLeft", top);
-  }
-
-  if (activePath && !paneForPath(panes, activePath)) {
-    const destination = paneSlots.find((slot) => !panes[slot]) ?? "topLeft";
-    panes[destination] = activePath;
-  }
-  const legacyFocusedSlot: PaneSlot | null = stored.focusedPane === "right"
-    ? "topRight"
-    : stored.focusedPane === "bottom"
-      ? "bottomLeft"
-      : stored.focusedPane === "top" || stored.focusedPane === "left" || stored.focusedPane === "center"
-        ? "topLeft"
-        : null;
-  const normalisedPanes = normalisePaneGeometry(panes);
-  const focusedPane = isPaneSlot(stored.focusedPane) && normalisedPanes[stored.focusedPane]
-    ? stored.focusedPane
-    : legacyFocusedSlot && normalisedPanes[legacyFocusedSlot]
-      ? legacyFocusedSlot
-      : paneForPath(normalisedPanes, activePath ?? "") ?? "topLeft";
-  const splitRatio = typeof stored.splitRatio === "number" && Number.isFinite(stored.splitRatio)
-    ? Math.min(0.8, Math.max(0.2, stored.splitRatio))
-    : 0.5;
-
-  return { activePath, focusedPane, openPaths, panes: normalisedPanes, splitRatio };
 }
 
 function extractMarkdownHeadings(content: string, idPrefix = "outline-heading"): DocumentHeading[] {
@@ -537,35 +375,6 @@ function formatMarkdownSelection(format: TextFormat, value: string) {
     case "link":
       return { value: `[${value}](https://)`, selectionStart: value.length + 3, selectionEnd: value.length + 11 };
   }
-}
-
-async function readError(response: Response) {
-  const body = (await response.json().catch(() => ({}))) as ApiError;
-  if (typeof body.error === "string") return body.error;
-  if (body.error && typeof body.error === "object" && "message" in body.error) {
-    const message = (body.error as { message?: unknown }).message;
-    if (typeof message === "string") return message;
-  }
-  return "Не удалось выполнить действие";
-}
-
-async function fetchVaultSnapshot() {
-  const response = await fetch("/api/vault", { cache: "no-store" });
-  if (!response.ok) throw new Error(await readError(response));
-  const body = (await response.json()) as { items: VaultEntry[]; folders?: VaultFolderEntry[] };
-  return {
-    folders: body.folders ?? collectFolders(body.items)
-      .filter(Boolean)
-      .map((path) => ({ kind: "folder" as const, name: folderLabel(path), path, updatedAt: "" })),
-    items: body.items,
-  };
-}
-
-async function fetchNoteContent(path: string) {
-  const response = await fetch(`/api/vault/note?path=${encodeURIComponent(path)}`, { cache: "no-store" });
-  if (!response.ok) throw new Error(await readError(response));
-  const body = (await response.json()) as { content: string };
-  return body.content;
 }
 
 function PanelSettings({
@@ -755,6 +564,8 @@ function VaultWorkspace() {
   const prefersReducedMotion = useReducedMotion();
   const { settings } = useAppSettings();
   const { notify } = useNotifications();
+  const vault = React.useMemo(() => createHttpVaultAdapter(), []);
+  const workspaceStorage = React.useMemo(() => createWorkspaceStorage(), []);
   const theme = settings.theme;
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const importDirectoryRef = React.useRef("");
@@ -771,6 +582,10 @@ function VaultWorkspace() {
   const paneResizeCleanupRef = React.useRef<() => void>(() => undefined);
   const tabDragSessionRef = React.useRef<TabDragSession | null>(null);
   const tabDragCleanupRef = React.useRef<() => void>(() => undefined);
+  const tabStripScrollRef = React.useRef<HTMLDivElement>(null);
+  const tabStripAutoScrollFrameRef = React.useRef<number | null>(null);
+  const tabStripAutoScrollDeltaRef = React.useRef(0);
+  const tabStripAutoScrollPointerRef = React.useRef<{ path: string; x: number; y: number } | null>(null);
   const hoverPreviewCacheRef = React.useRef<Record<string, string | null>>({});
   const hoverPreviewRequestsRef = React.useRef(new Set<string>());
   const libraryPreferencesReadyRef = React.useRef(false);
@@ -781,6 +596,8 @@ function VaultWorkspace() {
   const [tabs, setTabs] = React.useState<WorkspaceTab[]>([]);
   const [draggedTabPath, setDraggedTabPath] = React.useState<string | null>(null);
   const [dockTarget, setDockTarget] = React.useState<DockTarget | null>(null);
+  const [tabContextMenu, setTabContextMenu] = React.useState<TabContextMenu | null>(null);
+  const [tabDropIndicator, setTabDropIndicator] = React.useState<TabDropIndicator | null>(null);
   const [activePath, setActivePath] = React.useState<string | null>(null);
   const [paneTabsState, setPaneTabsState] = React.useState<PaneTabs>(emptyPaneTabs);
   const paneTabs = React.useMemo(() => normalisePaneGeometry(paneTabsState), [paneTabsState]);
@@ -842,24 +659,123 @@ function VaultWorkspace() {
     updateActiveTab((tab) => ({ ...tab, content: value }));
   }
 
-  function moveTab(draggedPath: string, targetPath: string) {
-    if (draggedPath === targetPath) return;
+  function orderedTabStripPaths(paths: readonly string[]) {
+    const groupedPaths = visiblePaneCount(paneTabs) > 1
+      ? paneSlots.flatMap((slot) => paneTabs[slot] ? [paneTabs[slot]] : [])
+      : [];
+    return workspaceTabStripPaths(paths, groupedPaths);
+  }
 
+  function moveTab(
+    draggedPath: string,
+    targetPath: string | null,
+    position: TabDropIndicator["position"],
+  ) {
     setTabs((current) => {
-      const sourceIndex = current.findIndex((tab) => tab.item.path === draggedPath);
-      const targetIndex = current.findIndex((tab) => tab.item.path === targetPath);
-      if (sourceIndex < 0 || targetIndex < 0) return current;
+      const paths = current.map((tab) => tab.item.path);
+      const resolvedDrop = resolveWorkspaceTabDrop(
+        orderedTabStripPaths(paths),
+        draggedPath,
+        targetPath,
+        position,
+      );
+      if (!resolvedDrop) return current;
+      if (resolvedDrop.paths.every((candidate, index) => candidate === paths[index])) return current;
 
-      const reordered = [...current];
-      const [draggedTab] = reordered.splice(sourceIndex, 1);
-      reordered.splice(targetIndex, 0, draggedTab);
-      return reordered;
+      const tabByPath = new Map(current.map((tab) => [tab.item.path, tab]));
+      return resolvedDrop.paths.map((candidate) => tabByPath.get(candidate) as WorkspaceTab);
     });
+  }
+
+  function tabDropIndicatorFromPoint(clientX: number, clientY: number, draggedPath: string): TabDropIndicator | null {
+    const targetElement = document.elementFromPoint(clientX, clientY);
+    if (!(targetElement instanceof HTMLElement)) return null;
+    const draggedIsGrouped = visiblePaneCount(paneTabs) > 1 && paneForPath(paneTabs, draggedPath) !== null;
+    const targetTab = targetElement.closest<HTMLElement>("[data-workspace-tab-drop-path]");
+    const targetIsGrouped = targetElement.closest("[data-workspace-tab-group]") !== null;
+    if (!draggedIsGrouped && targetIsGrouped) return null;
+
+    let rawTargetPath: string | null = null;
+    let rawPosition: WorkspaceTabDropPosition;
+    if (targetElement.closest("[data-workspace-tab-strip-dropzone]")) {
+      rawPosition = "end";
+    } else {
+      const targetPath = targetTab?.dataset.workspaceTabDropPath;
+      if (!targetTab || !targetPath || targetPath === draggedPath) return null;
+      const bounds = targetTab.getBoundingClientRect();
+      rawTargetPath = targetPath;
+      rawPosition = clientX < bounds.left + bounds.width / 2 ? "before" : "after";
+    }
+
+    const resolvedDrop = resolveWorkspaceTabDrop(
+      orderedTabStripPaths(tabs.map((tab) => tab.item.path)),
+      draggedPath,
+      rawTargetPath,
+      rawPosition,
+    );
+    const changesSplitMembership = draggedIsGrouped && !targetIsGrouped;
+    if (!resolvedDrop || (!resolvedDrop.changesOrder && !changesSplitMembership)) return null;
+    return { position: resolvedDrop.position, targetPath: resolvedDrop.targetPath };
+  }
+
+  function updateTabDropIndicator(next: TabDropIndicator | null) {
+    setTabDropIndicator((current) => (
+      current?.position === next?.position && current?.targetPath === next?.targetPath ? current : next
+    ));
+  }
+
+  function stopTabStripAutoScroll() {
+    tabStripAutoScrollDeltaRef.current = 0;
+    tabStripAutoScrollPointerRef.current = null;
+    if (tabStripAutoScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(tabStripAutoScrollFrameRef.current);
+      tabStripAutoScrollFrameRef.current = null;
+    }
+  }
+
+  function updateTabStripAutoScroll(clientX: number, clientY: number, path: string) {
+    const strip = tabStripScrollRef.current;
+    if (!strip) {
+      stopTabStripAutoScroll();
+      return;
+    }
+
+    const delta = tabStripAutoScrollDelta(strip.getBoundingClientRect(), clientX, clientY);
+    tabStripAutoScrollDeltaRef.current = delta;
+    tabStripAutoScrollPointerRef.current = delta === 0 ? null : { path, x: clientX, y: clientY };
+    if (delta === 0) {
+      stopTabStripAutoScroll();
+      return;
+    }
+    if (tabStripAutoScrollFrameRef.current !== null) return;
+
+    const scroll = () => {
+      const scrollElement = tabStripScrollRef.current;
+      const pointer = tabStripAutoScrollPointerRef.current;
+      const scrollDelta = tabStripAutoScrollDeltaRef.current;
+      if (!scrollElement || !pointer || scrollDelta === 0) {
+        stopTabStripAutoScroll();
+        return;
+      }
+
+      const previousScrollLeft = scrollElement.scrollLeft;
+      scrollElement.scrollLeft += scrollDelta;
+      if (scrollElement.scrollLeft === previousScrollLeft) {
+        stopTabStripAutoScroll();
+        return;
+      }
+
+      updateTabDropIndicator(tabDropIndicatorFromPoint(pointer.x, pointer.y, pointer.path));
+      tabStripAutoScrollFrameRef.current = window.requestAnimationFrame(scroll);
+    };
+
+    tabStripAutoScrollFrameRef.current = window.requestAnimationFrame(scroll);
   }
 
   function beginTabDrag(event: React.PointerEvent<HTMLElement>, path: string) {
     if (event.button !== 0) return;
     tabDragCleanupRef.current();
+    stopTabStripAutoScroll();
     const dragHandle = event.currentTarget;
     dragHandle.setPointerCapture(event.pointerId);
     tabDragSessionRef.current = {
@@ -882,15 +798,25 @@ function VaultWorkspace() {
       }
 
       const workspaceRect = workspacePaneContainerRef.current?.getBoundingClientRect();
-      const isOverWorkspace = workspaceRect
-        && pointerEvent.clientX >= workspaceRect.left
-        && pointerEvent.clientX <= workspaceRect.right
-        && pointerEvent.clientY >= workspaceRect.top
-        && pointerEvent.clientY <= workspaceRect.bottom;
+      const isOverWorkspace = workspaceRect && pointIsWithinRect(
+        workspaceRect,
+        pointerEvent.clientX,
+        pointerEvent.clientY,
+        TAB_DOCK_HORIZONTAL_MARGIN,
+        TAB_DOCK_VERTICAL_MARGIN,
+      );
       if (isOverWorkspace) {
         setDockTarget(dockTargetFromPoint(workspaceRect, pointerEvent.clientX, pointerEvent.clientY));
+        updateTabDropIndicator(null);
+        stopTabStripAutoScroll();
       } else {
         setDockTarget(null);
+        updateTabStripAutoScroll(pointerEvent.clientX, pointerEvent.clientY, session.path);
+        updateTabDropIndicator(tabDropIndicatorFromPoint(
+          pointerEvent.clientX,
+          pointerEvent.clientY,
+          session.path,
+        ));
       }
       pointerEvent.preventDefault();
     }
@@ -905,23 +831,37 @@ function VaultWorkspace() {
       if (!wasDragging) return;
 
       const workspaceRect = workspacePaneContainerRef.current?.getBoundingClientRect();
-      const isOverWorkspace = workspaceRect
-        && pointerEvent.clientX >= workspaceRect.left
-        && pointerEvent.clientX <= workspaceRect.right
-        && pointerEvent.clientY >= workspaceRect.top
-        && pointerEvent.clientY <= workspaceRect.bottom;
+      const isOverWorkspace = workspaceRect && pointIsWithinRect(
+        workspaceRect,
+        pointerEvent.clientX,
+        pointerEvent.clientY,
+        TAB_DOCK_HORIZONTAL_MARGIN,
+        TAB_DOCK_VERTICAL_MARGIN,
+      );
+      setTabDropIndicator(null);
+      stopTabStripAutoScroll();
 
       if (isOverWorkspace && tabs.length >= 2) {
         const target = dockTargetFromPoint(workspaceRect, pointerEvent.clientX, pointerEvent.clientY);
         dockTab(draggedPath, target);
       } else {
         const targetElement = document.elementFromPoint(pointerEvent.clientX, pointerEvent.clientY);
-        const targetPath = targetElement instanceof HTMLElement
-          ? targetElement.closest<HTMLElement>("[data-workspace-tab-path]")?.dataset.workspaceTabPath
-          : undefined;
-        if (targetPath) moveTab(draggedPath, targetPath);
+        const tabDrop = tabDropIndicatorFromPoint(
+          pointerEvent.clientX,
+          pointerEvent.clientY,
+          draggedPath,
+        );
+        const droppedOnTabStrip = targetElement instanceof HTMLElement
+          && targetElement.closest("[data-workspace-tab-strip]") !== null;
+        const droppedInsideSplitGroup = targetElement instanceof HTMLElement
+          && targetElement.closest("[data-workspace-tab-group]") !== null;
+        if (tabDrop) moveTab(draggedPath, tabDrop.targetPath, tabDrop.position);
+        if (paneForPath(paneTabs, draggedPath) && droppedOnTabStrip && !droppedInsideSplitGroup) {
+          undockTab(draggedPath, Boolean(tabDrop));
+        }
         setDockTarget(null);
         setDraggedTabPath(null);
+        setTabDropIndicator(null);
       }
       pointerEvent.preventDefault();
     }
@@ -932,6 +872,8 @@ function VaultWorkspace() {
       tabDragSessionRef.current = null;
       setDockTarget(null);
       setDraggedTabPath(null);
+      setTabDropIndicator(null);
+      stopTabStripAutoScroll();
       tabDragCleanupRef.current();
     }
 
@@ -954,21 +896,19 @@ function VaultWorkspace() {
 
   React.useEffect(() => () => {
     if (panelTransitionTimerRef.current !== null) window.clearTimeout(panelTransitionTimerRef.current);
+    if (tabStripAutoScrollFrameRef.current !== null) window.cancelAnimationFrame(tabStripAutoScrollFrameRef.current);
     panelResizeCleanupRef.current();
     paneResizeCleanupRef.current();
     tabDragCleanupRef.current();
   }, []);
 
   React.useEffect(() => {
-    const storedPosition = window.localStorage.getItem("archeion-panel-position");
-    const storedPresentation = window.localStorage.getItem(PANEL_MODE_STORAGE_KEY);
-    const storedCompact = window.localStorage.getItem(LEGACY_PANEL_COMPACT_STORAGE_KEY);
-    let storedSize: StoredPanelSize = {};
-    try {
-      storedSize = JSON.parse(window.localStorage.getItem(PANEL_SIZE_STORAGE_KEY) ?? "{}") as StoredPanelSize;
-    } catch {
-      storedSize = {};
-    }
+    const {
+      compact: storedCompact,
+      position: storedPosition,
+      presentation: storedPresentation,
+      size: storedSize,
+    } = workspaceStorage.readPanelPreferences();
     const frame = window.requestAnimationFrame(() => {
       if (storedPosition === "left" || storedPosition === "right" || storedPosition === "top" || storedPosition === "bottom") {
         setPanelPosition(storedPosition);
@@ -987,15 +927,10 @@ function VaultWorkspace() {
       panelPreferencesReadyRef.current = true;
     });
     return () => window.cancelAnimationFrame(frame);
-  }, []);
+  }, [workspaceStorage]);
 
   React.useEffect(() => {
-    let stored: StoredLibrary = {};
-    try {
-      stored = JSON.parse(window.localStorage.getItem(LIBRARY_STORAGE_KEY) ?? "{}") as StoredLibrary;
-    } catch {
-      stored = {};
-    }
+    const stored = workspaceStorage.readLibraryPreferences() as StoredLibrary;
 
     const storedFolders = Array.isArray(stored.expandedFolders)
       ? stored.expandedFolders.filter((folder): folder is string => typeof folder === "string")
@@ -1011,26 +946,28 @@ function VaultWorkspace() {
       libraryPreferencesReadyRef.current = true;
     });
     return () => window.cancelAnimationFrame(frame);
-  }, []);
+  }, [workspaceStorage]);
 
   React.useEffect(() => {
     if (!panelPreferencesReadyRef.current) return;
-    window.localStorage.setItem("archeion-panel-position", panelPosition);
-    window.localStorage.setItem(PANEL_MODE_STORAGE_KEY, panelPresentation);
-    window.localStorage.setItem(PANEL_SIZE_STORAGE_KEY, JSON.stringify({
-      horizontal: horizontalPanelSize,
-      side: sidePanelSize,
-    } satisfies StoredPanelSize));
-  }, [horizontalPanelSize, panelPosition, panelPresentation, sidePanelSize]);
+    workspaceStorage.writePanelPreferences({
+      position: panelPosition,
+      presentation: panelPresentation,
+      size: {
+        horizontal: horizontalPanelSize,
+        side: sidePanelSize,
+      } satisfies StoredPanelSize,
+    });
+  }, [horizontalPanelSize, panelPosition, panelPresentation, sidePanelSize, workspaceStorage]);
 
   React.useEffect(() => {
     if (!libraryPreferencesReadyRef.current) return;
-    window.localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify({
+    workspaceStorage.writeLibraryPreferences({
       expandedFolders,
       order: libraryOrder,
       view: libraryView,
-    } satisfies StoredLibrary));
-  }, [expandedFolders, libraryOrder, libraryView]);
+    } satisfies StoredLibrary);
+  }, [expandedFolders, libraryOrder, libraryView, workspaceStorage]);
 
   React.useEffect(() => {
     function toggleQuickPreview(event: KeyboardEvent) {
@@ -1111,10 +1048,10 @@ function VaultWorkspace() {
       return;
     }
 
-    if (tabs.length >= MAX_OPEN_TABS) {
+    if (tabs.length >= MAX_WORKSPACE_TABS) {
       notify({
         kind: "warning",
-        message: `Можно открыть не больше ${MAX_OPEN_TABS} вкладок. Закройте одну из открытых.`,
+        message: `Можно открыть не больше ${MAX_WORKSPACE_TABS} вкладок. Закройте одну из открытых.`,
         dedupeKey: "open-tabs-limit",
       });
       return;
@@ -1141,15 +1078,10 @@ function VaultWorkspace() {
     if (item.kind === "attachment") return;
 
     try {
-      const response = await fetch(`/api/vault/note?path=${encodeURIComponent(item.path)}`, {
-        cache: "no-store",
-      });
-      if (!response.ok) throw new Error(await readError(response));
-
-      const body = (await response.json()) as { content: string };
+      const noteContent = await vault.readNote(item.path);
       if (openRequestsRef.current[item.path] !== requestId) return;
       setTabs((current) => current.map((tab) => tab.item.path === item.path
-        ? { ...tab, content: body.content, isLoading: false, savedContent: body.content }
+        ? { ...tab, content: noteContent, isLoading: false, savedContent: noteContent }
         : tab));
     } catch (error) {
       if (openRequestsRef.current[item.path] !== requestId) return;
@@ -1178,7 +1110,7 @@ function VaultWorkspace() {
   }
 
   async function refreshItems() {
-    const snapshot = await fetchVaultSnapshot();
+    const snapshot = await vault.listSnapshot();
     setItems(snapshot.items);
     setFolders(snapshot.folders);
     return snapshot.items;
@@ -1189,13 +1121,11 @@ function VaultWorkspace() {
 
     hoverPreviewRequestsRef.current.add(item.path);
     try {
-      const response = await fetch(`/api/vault/note?path=${encodeURIComponent(item.path)}`, { cache: "no-store" });
-      if (!response.ok) return;
-
-      const body = (await response.json()) as { content: string };
-      hoverPreviewCacheRef.current[item.path] = body.content;
-      setHoverPreviewContentByPath((current) => ({ ...current, [item.path]: body.content }));
-    } catch {
+      const noteContent = await vault.readNote(item.path);
+      hoverPreviewCacheRef.current[item.path] = noteContent;
+      setHoverPreviewContentByPath((current) => ({ ...current, [item.path]: noteContent }));
+    } catch (error) {
+      if (error instanceof VaultOperationError && error.retryable) return;
       hoverPreviewCacheRef.current[item.path] = null;
       setHoverPreviewContentByPath((current) => ({ ...current, [item.path]: null }));
     } finally {
@@ -1242,61 +1172,27 @@ function VaultWorkspace() {
 
   React.useEffect(() => {
     let active = true;
+    const restoreController = new AbortController();
 
     void (async () => {
       try {
-        const snapshot = await fetchVaultSnapshot();
-        const nextItems = snapshot.items;
-        if (!active) return;
-        const restored = sanitiseStoredWorkspace(window.localStorage.getItem(WORKSPACE_STORAGE_KEY), nextItems);
-        const itemsByPath = new Map(nextItems.map((item) => [item.path, item]));
-        const tabsToRestore = restored.openPaths.flatMap((path) => {
-          const item = itemsByPath.get(path);
-          return item ? [{ content: "", editorMode: "edit", isLoading: item.kind === "note", item, savedContent: "" }] : [];
-        });
-
-        const restoredTabs = (await Promise.all(tabsToRestore.map(async (tab) => {
-          if (tab.item.kind !== "note") return { ...tab, isLoading: false };
-          try {
-            const noteContent = await fetchNoteContent(tab.item.path);
-            return { ...tab, content: noteContent, isLoading: false, savedContent: noteContent };
-          } catch (error) {
-            if (active) {
-              notify({
-                kind: "error",
-                message: error instanceof Error ? error.message : "Не удалось открыть заметку",
-                dedupeKey: `restore-note:${tab.item.path}`,
-              });
-            }
-            return null;
-          }
-        }))).filter((tab): tab is WorkspaceTab => tab !== null);
-
-        if (!active) return;
-        const restoredPaths = new Set(restoredTabs.map((tab) => tab.item.path));
-        const restoredActivePath = restored.activePath && restoredPaths.has(restored.activePath)
-          ? restored.activePath
-          : restoredTabs[0]?.item.path ?? null;
-        const restoredPanes = { ...restored.panes };
-        for (const slot of paneSlots) {
-          if (restoredPanes[slot] && !restoredPaths.has(restoredPanes[slot])) restoredPanes[slot] = null;
+        const restored = await restoreWorkspace(vault, workspaceStorage, restoreController.signal);
+        if (!active || !restored) return;
+        for (const failure of restored.failures) {
+          notify({
+            kind: "error",
+            message: failure.message,
+            dedupeKey: failure.dedupeKey,
+          });
         }
-        if (!paneForPath(restoredPanes, restoredActivePath ?? "") && restoredActivePath) {
-          const previousPane = paneForPath(restoredPanes, restoredActivePath);
-          if (previousPane) restoredPanes[previousPane] = null;
-          restoredPanes.topLeft = restoredActivePath;
-        }
-        const restoredFocusedPane = restoredPanes[restored.focusedPane]
-          ? restored.focusedPane
-          : paneForPath(restoredPanes, restoredActivePath ?? "") ?? "topLeft";
 
-        setItems(nextItems);
-        setFolders(snapshot.folders);
-        setTabs(restoredTabs);
-        setActivePath(restoredActivePath);
-        setPaneTabs(restoredPanes);
-        setFocusedPane(restoredFocusedPane);
-        setPaneSplitRatio(restored.splitRatio);
+        setItems(restored.items);
+        setFolders(restored.folders);
+        setTabs(restored.tabs);
+        setActivePath(restored.workspace.activePath);
+        setPaneTabs(restored.workspace.panes);
+        setFocusedPane(restored.workspace.focusedPane);
+        setPaneSplitRatio(restored.workspace.splitRatio);
       } catch (error) {
         if (active) {
           notify({
@@ -1315,38 +1211,32 @@ function VaultWorkspace() {
 
     return () => {
       active = false;
+      restoreController.abort();
     };
-  }, [notify, setPaneTabs]);
+  }, [notify, setPaneTabs, vault, workspaceStorage]);
 
   React.useEffect(() => {
     if (!isWorkspaceReady) return;
     const timer = window.setTimeout(() => {
-      window.localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify({
+      workspaceStorage.writeWorkspace({
         activePath,
         focusedPane,
         openPaths: tabs.map((tab) => tab.item.path),
         panes: paneTabs,
         splitRatio: paneSplitRatio,
-      } satisfies StoredWorkspace));
+      } satisfies WorkspaceState);
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [activePath, focusedPane, isWorkspaceReady, paneSplitRatio, paneTabs, tabs]);
+  }, [activePath, focusedPane, isWorkspaceReady, paneSplitRatio, paneTabs, tabs, workspaceStorage]);
 
   async function createLibraryNote({ directory, name }: VaultLibraryCreateInput) {
     setIsCreating(true);
 
     try {
-      const response = await fetch("/api/vault", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ directory, title: name, type: "note" }),
-      });
-      if (!response.ok) throw new Error(await readError(response));
-
-      const body = (await response.json()) as { item: VaultEntry };
-      revealFolder(parentFolder(body.item.path));
+      const item = await vault.createNote({ directory, name });
+      revealFolder(parentFolder(item.path));
       await refreshItems();
-      await openItem(body.item);
+      await openItem(item);
     } catch (error) {
       throw error;
     } finally {
@@ -1362,22 +1252,13 @@ function VaultWorkspace() {
     setIsUploading(true);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("directory", importDirectoryRef.current);
-      const response = await fetch("/api/vault/upload", {
-        method: "POST",
-        body: formData,
-      });
-      if (!response.ok) throw new Error(await readError(response));
-
-      const body = (await response.json()) as { item: VaultEntry };
-      revealFolder(parentFolder(body.item.path));
+      const item = await vault.upload(file, importDirectoryRef.current);
+      revealFolder(parentFolder(item.path));
       await refreshItems();
-      await openItem(body.item);
+      await openItem(item);
       notify({
         kind: "success",
-        message: `Файл «${body.item.name}» добавлен`,
+        message: `Файл «${item.name}» добавлен`,
         dedupeKey: "upload-file",
       });
     } catch (error) {
@@ -1395,16 +1276,9 @@ function VaultWorkspace() {
     setBusyLibraryPaths((current) => [...new Set([...current, directory || "__root__"])]);
 
     try {
-      const response = await fetch("/api/vault", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ directory, name, type: "folder" }),
-      });
-      if (!response.ok) throw new Error(await readError(response));
-
-      const body = (await response.json()) as { folder: VaultFolderEntry };
+      const folder = await vault.createFolder({ directory, name });
       await refreshItems();
-      revealFolder(body.folder.path);
+      revealFolder(folder.path);
     } catch (error) {
       throw error;
     } finally {
@@ -1412,7 +1286,7 @@ function VaultWorkspace() {
     }
   }
 
-  function normalisePathChanges(body: { oldPath?: string; newPath?: string; pathChanges?: PathChange[] }) {
+  function normalisePathChanges(body: Partial<VaultMutation>) {
     if (Array.isArray(body.pathChanges) && body.pathChanges.length > 0) return body.pathChanges;
     return body.oldPath && body.newPath ? [{ from: body.oldPath, to: body.newPath }] : [];
   }
@@ -1482,15 +1356,8 @@ function VaultWorkspace() {
     setBusyLibraryPaths((current) => [...new Set([...current, target.path])]);
 
     try {
-      const response = await fetch("/api/vault/item", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, path: target.path }),
-      });
-      if (!response.ok) throw new Error(await readError(response));
-
-      const body = (await response.json()) as { oldPath?: string; newPath?: string; pathChanges?: PathChange[] };
-      const changes = normalisePathChanges(body);
+      const mutation = await vault.rename(target.path, name);
+      const changes = normalisePathChanges(mutation);
       const nextItems = await refreshItems();
       applyPathChanges(changes, nextItems);
     } catch (error) {
@@ -1510,15 +1377,8 @@ function VaultWorkspace() {
 
     setBusyLibraryPaths((current) => [...new Set([...current, input.path])]);
     try {
-      const response = await fetch("/api/vault/item", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ destination: input.destination, path: input.path }),
-      });
-      if (!response.ok) throw new Error(await readError(response));
-
-      const body = (await response.json()) as { oldPath?: string; newPath?: string; pathChanges?: PathChange[] };
-      const changes = normalisePathChanges(body);
+      const mutation = await vault.move(input.path, input.destination);
+      const changes = normalisePathChanges(mutation);
       const nextItems = await refreshItems();
       applyPathChanges(changes, nextItems);
       revealFolder(input.destination);
@@ -1531,25 +1391,18 @@ function VaultWorkspace() {
 
   function removeTargetFromWorkspace(target: VaultLibraryTarget) {
     const isRemoved = (path: string) => target.kind === "folder" ? pathIsWithin(path, target.path) : path === target.path;
-    const remainingTabs = tabs.filter((tab) => !isRemoved(tab.item.path));
-    const nextActivePath = activePath && !isRemoved(activePath)
-      ? activePath
-      : remainingTabs[0]?.item.path ?? null;
-    const nextPanes = paneSlots.reduce<PaneTabs>((next, slot) => ({
-      ...next,
-      [slot]: paneTabs[slot] && !isRemoved(paneTabs[slot]) ? paneTabs[slot] : null,
-    }), { ...emptyPaneTabs });
+    const nextWorkspace = removeWorkspaceTarget({
+      activePath,
+      focusedPane,
+      openPaths: tabs.map((tab) => tab.item.path),
+      panes: paneTabs,
+      splitRatio: paneSplitRatio,
+    }, target);
 
-    if (!paneForPath(nextPanes, nextActivePath ?? "") && nextActivePath) {
-      const occupied = paneForPath(nextPanes, nextActivePath);
-      if (occupied) nextPanes[occupied] = null;
-      nextPanes[paneSlots.find((slot) => !nextPanes[slot]) ?? "topLeft"] = nextActivePath;
-    }
-
-    setTabs(remainingTabs);
-    setPaneTabs(nextPanes);
-    setActivePath(nextActivePath);
-    setFocusedPane(paneForPath(nextPanes, nextActivePath ?? "") ?? "topLeft");
+    setTabs((current) => current.filter((tab) => !isRemoved(tab.item.path)));
+    setPaneTabs(nextWorkspace.panes);
+    setActivePath(nextWorkspace.activePath);
+    setFocusedPane(nextWorkspace.focusedPane);
     setExpandedFolders((current) => current.filter((folder) => !isRemoved(folder)));
     setLibraryOrder((current) => current.filter((path) => !isRemoved(path)));
     setSavingPaths((current) => current.filter((path) => !isRemoved(path)));
@@ -1582,13 +1435,7 @@ function VaultWorkspace() {
 
     setBusyLibraryPaths((current) => [...new Set([...current, target.path])]);
     try {
-      const response = await fetch("/api/vault/item", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: target.path }),
-      });
-      if (!response.ok) throw new Error(await readError(response));
-
+      await vault.delete(target.path);
       removeTargetFromWorkspace(target);
       await refreshItems();
     } catch (error) {
@@ -1598,11 +1445,8 @@ function VaultWorkspace() {
     }
   }
 
-  async function searchVault(query: string): Promise<readonly VaultLibrarySearchResult[]> {
-    const response = await fetch(`/api/vault/search?q=${encodeURIComponent(query)}`, { cache: "no-store" });
-    if (!response.ok) throw new Error(await readError(response));
-    const body = (await response.json()) as { results: VaultLibrarySearchResult[] };
-    return body.results;
+  async function searchVault(query: string): Promise<readonly VaultSearchResult[]> {
+    return vault.search(query);
   }
 
   function openImportPicker(directory: string) {
@@ -1617,20 +1461,13 @@ function VaultWorkspace() {
     setSavingPaths((current) => current.includes(path) ? current : [...current, path]);
 
     try {
-      const response = await fetch("/api/vault/note", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: selected.path, content }),
-      });
-      if (!response.ok) throw new Error(await readError(response));
-
-      const body = (await response.json()) as { item: VaultEntry };
-      setItems((current) => current.map((item) => (item.path === body.item.path ? body.item : item)));
-      setTabs((current) => current.map((tab) => tab.item.path === body.item.path
-        ? { ...tab, item: body.item, savedContent: content }
+      const item = await vault.saveNote(selected.path, content);
+      setItems((current) => current.map((candidate) => (candidate.path === item.path ? item : candidate)));
+      setTabs((current) => current.map((tab) => tab.item.path === item.path
+        ? { ...tab, item, savedContent: content }
         : tab));
-      hoverPreviewCacheRef.current[body.item.path] = content;
-      setHoverPreviewContentByPath((current) => ({ ...current, [body.item.path]: content }));
+      hoverPreviewCacheRef.current[item.path] = content;
+      setHoverPreviewContentByPath((current) => ({ ...current, [item.path]: content }));
       notify({
         kind: "success",
         message: "Изменения сохранены в Markdown-файл",
@@ -1659,41 +1496,52 @@ function VaultWorkspace() {
       return;
     }
 
-    const closingIndex = tabs.findIndex((candidate) => candidate.item.path === path);
     const remainingTabs = tabs.filter((candidate) => candidate.item.path !== path);
-    const nextActiveTab = remainingTabs[Math.min(closingIndex, remainingTabs.length - 1)] ?? null;
-    const nextPanes = paneSlots.reduce<PaneTabs>((next, slot) => ({
-      ...next,
-      [slot]: paneTabs[slot] === path ? null : paneTabs[slot],
-    }), { ...emptyPaneTabs });
-
-    if (!paneForPath(nextPanes, nextActiveTab?.item.path ?? "") && nextActiveTab) {
-      const nextActivePane = paneForPath(nextPanes, nextActiveTab.item.path);
-      if (nextActivePane) nextPanes[nextActivePane] = null;
-      nextPanes[paneSlots.find((slot) => !nextPanes[slot]) ?? "topLeft"] = nextActiveTab.item.path;
-    }
+    const nextWorkspace = closeWorkspaceTab({
+      activePath,
+      focusedPane,
+      openPaths: tabs.map((candidate) => candidate.item.path),
+      panes: paneTabs,
+      splitRatio: paneSplitRatio,
+    }, path);
 
     setTabs(remainingTabs);
-    setPaneTabs(nextPanes);
-    if (activePath === path) {
-      const nextPath = nextActiveTab?.item.path ?? null;
-      setActivePath(nextPath);
-      setFocusedPane(paneForPath(nextPanes, nextPath ?? "") ?? "topLeft");
-    }
+    setPaneTabs(nextWorkspace.panes);
+    setActivePath(nextWorkspace.activePath);
+    setFocusedPane(nextWorkspace.focusedPane);
     delete openRequestsRef.current[path];
     setFormattingHint(null);
   }
 
+  function undockTab(path: string, preserveTabOrder = false) {
+    const nextWorkspace = undockWorkspaceTab({
+      activePath,
+      focusedPane,
+      openPaths: tabs.map((tab) => tab.item.path),
+      panes: paneTabs,
+      splitRatio: paneSplitRatio,
+    }, path);
+    if (nextWorkspace.panes === paneTabs) return;
+
+    if (!preserveTabOrder) {
+      setTabs((current) => {
+        const paths = current.map((tab) => tab.item.path);
+        const orderedPaths = orderedTabStripPaths(paths);
+        if (orderedPaths.every((candidate, index) => candidate === paths[index])) return current;
+
+        const tabByPath = new Map(current.map((tab) => [tab.item.path, tab]));
+        return orderedPaths.map((candidate) => tabByPath.get(candidate) as WorkspaceTab);
+      });
+    }
+
+    setPaneTabs(nextWorkspace.panes);
+    setActivePath(nextWorkspace.activePath);
+    setFocusedPane(nextWorkspace.focusedPane);
+  }
+
   function collapsePane(slot: PaneSlot) {
     const path = paneTabs[slot];
-    if (!path) return;
-    const nextPanes = { ...paneTabs, [slot]: null };
-    setPaneTabs(nextPanes);
-    if (activePath === path) {
-      const nextSlot = paneSlots.find((candidate) => nextPanes[candidate]);
-      setActivePath(nextSlot ? nextPanes[nextSlot] : null);
-      setFocusedPane(nextSlot ?? "topLeft");
-    }
+    if (path) undockTab(path);
   }
 
   function dockTab(path: string, target: DockTarget) {
@@ -1708,60 +1556,28 @@ function VaultWorkspace() {
       return;
     }
 
-    const source = paneForPath(paneTabs, path);
-    const [primarySlot, companionSlot] = dockTargetSlots[target];
-    const edgeSlots = dockEdgeSlots[target];
-    let nextPanes: PaneTabs;
-
-    if (visiblePaneCount(paneTabs) <= 1) {
-      const companionPath = tabs.find((tab) => tab.item.path !== path)?.item.path ?? null;
-      if (!companionPath) {
-        notify({
-          kind: "warning",
-          message: "Для разделения экрана нужна ещё одна открытая вкладка.",
-          dedupeKey: "dock-needs-tabs",
-        });
-        setDockTarget(null);
-        setDraggedTabPath(null);
-        return;
-      }
-      nextPanes = { ...emptyPaneTabs, [primarySlot]: path, [companionSlot]: companionPath };
-    } else if (visiblePaneCount(paneTabs) === 2 && source) {
-      const companionPath = paneSlots
-        .map((slot) => paneTabs[slot])
-        .find((panePath) => panePath && panePath !== path) ?? null;
-      nextPanes = { ...emptyPaneTabs, [primarySlot]: path, [companionSlot]: companionPath };
-    } else {
-      nextPanes = { ...paneTabs };
-      let destination = edgeSlots.find((slot) => nextPanes[slot] === path)
-        ?? edgeSlots.find((slot) => !nextPanes[slot])
-        ?? paneSlots.find((slot) => !nextPanes[slot])
-        ?? null;
-
-      if (!destination && !source) {
-        notify({
-          kind: "warning",
-          message: "На экране уже четыре файла. Сверните одну область или переместите открытую вкладку.",
-          dedupeKey: "dock-pane-limit",
-        });
-        setDockTarget(null);
-        setDraggedTabPath(null);
-        return;
-      }
-
-      destination ??= primarySlot;
-      if (source && source !== destination) {
-        const displacedPath = nextPanes[destination];
-        nextPanes[destination] = path;
-        nextPanes[source] = displacedPath ?? null;
-      } else {
-        nextPanes[destination] = path;
-      }
+    const currentWorkspace: WorkspaceState = {
+      activePath,
+      focusedPane,
+      openPaths: tabs.map((tab) => tab.item.path),
+      panes: paneTabs,
+      splitRatio: paneSplitRatio,
+    };
+    const nextWorkspace = dockWorkspaceTab(currentWorkspace, path, target);
+    if (nextWorkspace === currentWorkspace) {
+      notify({
+        kind: "warning",
+        message: "На экране уже четыре файла. Сверните одну область или переместите открытую вкладку.",
+        dedupeKey: "dock-pane-limit",
+      });
+      setDockTarget(null);
+      setDraggedTabPath(null);
+      return;
     }
-    setPaneTabs(nextPanes);
-    setPaneSplitRatio(0.5);
-    setFocusedPane(primarySlot);
-    setActivePath(path);
+    setPaneTabs(nextWorkspace.panes);
+    setPaneSplitRatio(nextWorkspace.splitRatio);
+    setFocusedPane(nextWorkspace.focusedPane);
+    setActivePath(nextWorkspace.activePath);
     setWorkspaceView("document");
     setFormattingHint(null);
     setDockTarget(null);
@@ -1887,6 +1703,15 @@ function VaultWorkspace() {
   const standaloneTabs = visiblePanes > 1
     ? tabs.filter((tab) => paneForPath(paneTabs, tab.item.path) === null)
     : tabs;
+  const firstGroupedTabIndex = visiblePanes > 1
+    ? tabs.findIndex((tab) => paneForPath(paneTabs, tab.item.path) !== null)
+    : -1;
+  const standaloneTabsBeforeGroup = firstGroupedTabIndex < 0
+    ? standaloneTabs
+    : tabs.slice(0, firstGroupedTabIndex).filter((tab) => paneForPath(paneTabs, tab.item.path) === null);
+  const standaloneTabsAfterGroup = firstGroupedTabIndex < 0
+    ? []
+    : tabs.slice(firstGroupedTabIndex).filter((tab) => paneForPath(paneTabs, tab.item.path) === null);
   const visibleEditorMode: EditorMode = visiblePanes > 1 && editorMode === "split" ? "edit" : editorMode;
   const splitAxis: PaneSplitAxis | null = visiblePanes === 2
     ? (visiblePaneSlots.every((slot) => slot === "topLeft" || slot === "topRight")
@@ -2328,6 +2153,15 @@ function VaultWorkspace() {
     );
   }
 
+  function openTabContextMenu(path: string, target: HTMLElement, clientX = 0, clientY = 0) {
+    const bounds = target.getBoundingClientRect();
+    setTabContextMenu({
+      path,
+      x: clientX || bounds.left + bounds.width / 2,
+      y: clientY || bounds.bottom,
+    });
+  }
+
   function renderWorkspaceTab(tab: WorkspaceTab, isGrouped = false) {
     const path = tab.item.path;
     const isActive = activePath === path && workspaceView === "document";
@@ -2343,12 +2177,28 @@ function VaultWorkspace() {
           isActive && "text-foreground",
           draggedTabPath === path && "opacity-45",
         )}
+        data-workspace-tab-drop-path={path}
         exit={prefersReducedMotion ? undefined : { opacity: 0, scale: 0.96, x: -6 }}
         initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.96, x: -6 }}
         key={path}
         layout={prefersReducedMotion ? false : "position"}
+        onContextMenu={isGrouped ? (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          openTabContextMenu(path, event.currentTarget, event.clientX, event.clientY);
+        } : undefined}
         transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
       >
+        {tabDropIndicator?.targetPath === path && tabDropIndicator.position !== "end" ? (
+          <motion.span
+            animate={{ opacity: 1, scaleY: 1 }}
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-1 left-0 z-30 w-0.5 rounded-full bg-primary ring-2 ring-background"
+            data-workspace-tab-drop-indicator
+            initial={prefersReducedMotion ? false : { opacity: 0, scaleY: 0.55 }}
+            transition={{ duration: prefersReducedMotion ? 0 : 0.12, ease: [0.16, 1, 0.3, 1] }}
+          />
+        ) : null}
         {isActive ? (
           prefersReducedMotion ? (
             <span aria-hidden="true" className="absolute inset-0 rounded-md bg-[var(--editor)] shadow-sm ring-1 ring-border/70" />
@@ -2363,13 +2213,22 @@ function VaultWorkspace() {
         ) : null}
         <button
           aria-controls={`workspace-pane-${paneForPath(paneTabs, path) ?? focusedPane}`}
+          aria-haspopup={isGrouped ? "menu" : undefined}
           aria-selected={isActive}
           className="relative z-10 flex min-w-0 flex-1 cursor-grab items-center gap-2 self-stretch rounded-md pl-2.5 pr-1 text-left text-xs font-medium outline-none transition-colors duration-150 active:cursor-grabbing focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70 motion-reduce:transition-none"
           data-workspace-tab-path={path}
           onClick={() => activateTab(path)}
+          onKeyDown={isGrouped ? (event) => {
+            if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return;
+            event.preventDefault();
+            event.stopPropagation();
+            openTabContextMenu(path, event.currentTarget);
+          } : undefined}
           onPointerDown={(event) => beginTabDrag(event, path)}
           role="tab"
-          title={`${path} — перетащите на левый, правый, верхний или нижний край документа`}
+          title={isGrouped
+            ? `${path} — перетащите на полосу вкладок, чтобы убрать из разделения · ПКМ или Shift+F10 — действия`
+            : `${path} — перетащите на левый, правый, верхний или нижний край документа`}
           type="button"
         >
           {tab.item.kind === "note"
@@ -2414,11 +2273,19 @@ function VaultWorkspace() {
           className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] bg-[var(--editor)]"
           style={{ gridArea: "canvas" }}
         >
-          <nav aria-label="Открытые файлы" className="row-start-1 z-20 flex h-12 shrink-0 min-w-0 items-end border-b bg-muted/45 px-2.5">
-            <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <div className="flex min-w-max items-end gap-2 pt-2" role="tablist">
+          <nav
+            aria-label="Открытые файлы"
+            className="row-start-1 z-20 flex h-12 shrink-0 min-w-0 items-end border-b bg-muted/45 px-2.5 pb-1"
+            data-workspace-tab-strip
+          >
+            <div
+              className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              data-workspace-tab-scroll
+              ref={tabStripScrollRef}
+            >
+              <div className="flex w-full min-w-max items-end gap-2 pt-2" role="tablist">
                 <AnimatePresence initial={false}>
-                  {standaloneTabs.map((tab) => renderWorkspaceTab(tab))}
+                  {standaloneTabsBeforeGroup.map((tab) => renderWorkspaceTab(tab))}
                 </AnimatePresence>
 
                 {groupedTabs.length > 0 ? (
@@ -2428,6 +2295,7 @@ function VaultWorkspace() {
                     className="workspace-tab-group relative mx-2 flex h-9 shrink-0 items-end px-1"
                     data-workspace-tab-group
                     initial={prefersReducedMotion ? false : { opacity: 0, y: -2 }}
+                    role="group"
                     transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                   >
                     <span aria-hidden="true" className="workspace-tab-group-shelf absolute inset-x-0 bottom-0 h-9" />
@@ -2439,9 +2307,29 @@ function VaultWorkspace() {
                   </motion.div>
                 ) : null}
 
+                <AnimatePresence initial={false}>
+                  {standaloneTabsAfterGroup.map((tab) => renderWorkspaceTab(tab))}
+                </AnimatePresence>
+
                 {tabs.length === 0 ? (
                   <p className="flex h-9 items-center px-3 text-xs text-muted-foreground">Откройте файл из Vault</p>
                 ) : null}
+
+                <span
+                  aria-hidden="true"
+                  className="relative h-9 min-w-16 flex-1"
+                  data-workspace-tab-strip-dropzone
+                >
+                  {tabDropIndicator?.position === "end" ? (
+                    <motion.span
+                      animate={{ opacity: 1, scaleY: 1 }}
+                      className="pointer-events-none absolute inset-y-1 left-0 z-30 w-0.5 rounded-full bg-primary ring-2 ring-background"
+                      data-workspace-tab-drop-indicator
+                      initial={prefersReducedMotion ? false : { opacity: 0, scaleY: 0.55 }}
+                      transition={{ duration: prefersReducedMotion ? 0 : 0.12, ease: [0.16, 1, 0.3, 1] }}
+                    />
+                  ) : null}
+                </span>
               </div>
             </div>
           </nav>
@@ -2632,6 +2520,14 @@ function VaultWorkspace() {
                     <span
                       aria-hidden="true"
                       className={cn(
+                        "absolute pointer-events-auto",
+                        splitAxis === "horizontal" ? "-inset-x-1.5 inset-y-0" : "inset-x-0 -inset-y-1.5",
+                      )}
+                      data-workspace-pane-divider-hit-area
+                    />
+                    <span
+                      aria-hidden="true"
+                      className={cn(
                         "bg-border transition-[background-color,width,height] duration-150 group-hover:bg-primary/70 group-focus-visible:bg-primary/70 motion-reduce:transition-none",
                         splitAxis === "horizontal" ? "h-full w-px group-hover:w-0.5 group-focus-visible:w-0.5" : "h-px w-full group-hover:h-0.5 group-focus-visible:h-0.5",
                         isPaneResizing && (splitAxis === "horizontal" ? "w-0.5 bg-primary" : "h-0.5 bg-primary"),
@@ -2679,7 +2575,7 @@ function VaultWorkspace() {
                   <FolderOpenIcon className="size-5" />
                 </span>
                 <h2 className="mt-5 text-xl font-semibold tracking-[-0.02em]">Раскройте папку и выберите файл</h2>
-                <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">Файлы открываются во вкладках сверху. Одновременно можно держать до {MAX_OPEN_TABS} вкладок.</p>
+                <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">Файлы открываются во вкладках сверху. Одновременно можно держать до {MAX_WORKSPACE_TABS} вкладок.</p>
               </div>
             )}
           </div>
@@ -2799,6 +2695,35 @@ function VaultWorkspace() {
       <NotificationViewport style={notificationViewportStyle} />
       <SettingsDialog onOpenChange={setIsSettingsOpen} open={isSettingsOpen} />
       </main>
+
+      <DropdownMenu
+        modal={false}
+        onOpenChange={(open) => {
+          if (!open) setTabContextMenu(null);
+        }}
+        open={tabContextMenu !== null}
+      >
+        <DropdownMenuTrigger asChild>
+          <span
+            aria-hidden="true"
+            className="pointer-events-none fixed size-px opacity-0"
+            style={{ left: tabContextMenu?.x ?? 0, top: tabContextMenu?.y ?? 0 }}
+          />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-52 rounded-lg" side="right" sideOffset={2}>
+          <DropdownMenuLabel className="truncate">
+            {tabs.find((tab) => tab.item.path === tabContextMenu?.path)?.item.name ?? "Вкладка"}
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => {
+              if (tabContextMenu) undockTab(tabContextMenu.path);
+            }}
+          >
+            Убрать из разделения
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       {formattingHint && typeof document !== "undefined" ? createPortal(
         <div

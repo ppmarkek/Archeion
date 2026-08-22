@@ -1,1 +1,1 @@
-Perform the manual verification, then run: npx --yes anchorloop@0.2.1 verify
+Close the task when the outcome is accepted: npx --yes anchorloop@0.2.1 close

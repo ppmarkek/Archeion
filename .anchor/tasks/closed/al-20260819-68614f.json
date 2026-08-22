@@ -1,0 +1,290 @@
+{
+  "approval": {
+    "at": "2026-08-19T02:48:35.627111+00:00",
+    "brief_digest": "sha256:5481425661e6193b80793ac52799a9df24b42f31bdcbd35424a041b8b6b18480",
+    "brief_record_digest": "sha256:d8d3c1f8ee78ce910297164295dd90cb1075aaee8dc77b004d50ed077753b5fe",
+    "by": "Mark",
+    "ownership_digest": "sha256:a632c0ef572f4c523efb543dc81f672458c762d5cc0d10886ad170e18aab18df",
+    "plan_digest": "sha256:bccf4c023c3e3f099c08757cbd7fe083885fc502bea0828060d29239b3566004",
+    "plan_summary": "\u0412\u0432\u0435\u0441\u0442\u0438 \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u0435\u043c\u044b\u0439 \u0442\u0435\u0441\u0442\u043e\u0432\u044b\u0439 \u0444\u0443\u043d\u0434\u0430\u043c\u0435\u043d\u0442 Vault: Vitest \u0434\u043b\u044f unit \u0438 Route Handler contracts, \u0438\u0437\u043e\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0439 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u044b\u0439 Vault fixture, \u0437\u0430\u0442\u0435\u043c Playwright real-server e2e \u043d\u0430 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u043e\u043c \u043f\u043e\u0440\u0442\u0443. \u0420\u0435\u0430\u043b\u0438\u0437\u043e\u0432\u044b\u0432\u0430\u0442\u044c \u0432\u0435\u0440\u0442\u0438\u043a\u0430\u043b\u044c\u043d\u044b\u043c\u0438 RED\u2192GREEN-\u0441\u0440\u0435\u0437\u0430\u043c\u0438, \u043d\u0430\u0447\u0438\u043d\u0430\u044f \u0441 \u0437\u0430\u043f\u0440\u0435\u0442\u0430 path traversal.",
+    "provenance": "audit",
+    "record_digest": "sha256:31f33cc52688724a78ede7f6caed018e366fe4178319a68dea8146b5781c4c13",
+    "ruleset_digest": "sha256:94d25e32c5a72ad113da4cbdd772e5e421cd36716d94a622724dc34e1c28a2cb",
+    "ruleset_version": "ruleset-e15da02dc403",
+    "task_digest": "sha256:1cc71f8f96a746164ca10204df060634e970e0c820ae7a9b6d9e67cbb053f5ad"
+  },
+  "brief": {
+    "constraints": "\u041a\u0430\u0436\u0434\u044b\u0439 \u0442\u0435\u0441\u0442 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u0442\u043e\u043b\u044c\u043a\u043e \u0432 \u043f\u0440\u043e\u0432\u0435\u0440\u0435\u043d\u043d\u043e\u043c \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e\u043c \u043a\u0430\u0442\u0430\u043b\u043e\u0433\u0435 ARCHEION_VAULT_DIR; DATABASE_URL \u043e\u0442\u043a\u043b\u044e\u0447\u0451\u043d; \u043e\u043a\u0440\u0443\u0436\u0435\u043d\u0438\u0435 \u0432\u043e\u0441\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u0435\u0442\u0441\u044f \u043f\u043e\u0441\u043b\u0435 \u0442\u0435\u0441\u0442\u0430; \u0444\u0430\u0439\u043b\u043e\u0432\u044b\u0435 \u0442\u0435\u0441\u0442\u044b \u043d\u0435 \u043a\u043e\u043d\u0444\u043b\u0438\u043a\u0442\u0443\u044e\u0442 \u0441 module-global queue/cache; \u0442\u0435\u0441\u0442\u044b \u0434\u0435\u0442\u0435\u0440\u043c\u0438\u043d\u0438\u0440\u043e\u0432\u0430\u043d\u044b \u0438 \u043f\u0440\u043e\u0432\u0435\u0440\u044f\u044e\u0442 \u043f\u0443\u0431\u043b\u0438\u0447\u043d\u043e\u0435 \u043f\u043e\u0432\u0435\u0434\u0435\u043d\u0438\u0435; \u043d\u043e\u0432\u044b\u0435 \u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e\u0441\u0442\u0438 \u043e\u0433\u0440\u0430\u043d\u0438\u0447\u0435\u043d\u044b \u043d\u0435\u043e\u0431\u0445\u043e\u0434\u0438\u043c\u044b\u043c test tooling.",
+    "invariant": "Mark: \u0432\u0441\u0451 \u0445\u043e\u0440\u043e\u0448\u043e \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u043d\u0430 \u043f\u0440\u0430\u043a\u0442\u0438\u043a\u0435, \u043d\u043e \u0435\u0449\u0451 \u043d\u0443\u0436\u043d\u043e \u043f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c \u0431\u043e\u043b\u0435\u0435 \u0433\u043b\u0443\u0431\u043e\u043a\u043e \u2014 \u0441\u0430\u043c \u043a\u043e\u0434. \u0410\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u0442\u0435\u0441\u0442\u044b \u043d\u0438 \u043f\u0440\u0438 \u043a\u0430\u043a\u0438\u0445 \u0443\u0441\u043b\u043e\u0432\u0438\u044f\u0445 \u043d\u0435 \u0447\u0438\u0442\u0430\u044e\u0442, \u043d\u0435 \u0438\u0437\u043c\u0435\u043d\u044f\u044e\u0442 \u0438 \u043d\u0435 \u0443\u0434\u0430\u043b\u044f\u044e\u0442 \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c\u0441\u043a\u0438\u0435 \u0444\u0430\u0439\u043b\u044b Vault \u0438\u043b\u0438 \u0434\u0430\u043d\u043d\u044b\u0435 \u0411\u0414.",
+    "outcome": "\u041f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u0435\u043c\u044b\u0439 \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0439 \u043d\u0430\u0431\u043e\u0440 unit, API integration \u0438 browser/e2e-\u0442\u0435\u0441\u0442\u043e\u0432, \u043a\u043e\u0442\u043e\u0440\u044b\u0439 \u0433\u043b\u0443\u0431\u043e\u043a\u043e \u043f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u0442 \u043a\u0440\u0438\u0442\u0438\u0447\u0435\u0441\u043a\u043e\u0435 \u043f\u043e\u0432\u0435\u0434\u0435\u043d\u0438\u0435 Vault \u0438 \u043b\u043e\u0432\u0438\u0442 \u0440\u0435\u0433\u0440\u0435\u0441\u0441\u0438\u0438.",
+    "scope": "\u041d\u0430\u0441\u0442\u0440\u043e\u0438\u0442\u044c \u0442\u0435\u0441\u0442\u043e\u0432\u044b\u0435 runners \u0438 npm scripts; \u0434\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0438\u0437\u043e\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0439 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u044b\u0439 Vault fixture; \u043f\u043e\u043a\u0440\u044b\u0442\u044c \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u044c \u043f\u0443\u0442\u0435\u0439, \u0444\u0430\u0439\u043b\u043e\u0432\u044b\u0435 \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438, \u043f\u043e\u0438\u0441\u043a, \u0433\u0440\u0430\u0444, Route Handler contracts \u0438 \u043e\u0434\u0438\u043d \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0439 browser/e2e-\u043f\u0443\u0442\u044c. \u041d\u0435 \u043c\u0435\u043d\u044f\u0442\u044c \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u043e\u0432\u0443\u044e \u043b\u043e\u0433\u0438\u043a\u0443 \u0438 \u0434\u0438\u0437\u0430\u0439\u043d, \u043d\u0435 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0430\u0442\u044c \u0440\u0435\u0430\u043b\u044c\u043d\u0443\u044e \u0411\u0414 \u0438 \u043d\u0435 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u044c \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c\u0441\u043a\u0438\u0439 Vault.",
+    "uncertainty": "\u041a\u0430\u043a\u043e\u0439 \u043c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u044b\u0439 \u043d\u0430\u0431\u043e\u0440 Vitest/Playwright-\u043a\u043e\u043d\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u0438 \u0434\u0430\u0441\u0442 \u043d\u0430\u0434\u0451\u0436\u043d\u044b\u0435 unit, Route Handler \u0438 \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0439 Next browser/e2e-\u0442\u0435\u0441\u0442\u044b \u0431\u0435\u0437 \u0444\u043b\u0430\u043a\u043e\u0432 \u0438 \u0432\u043b\u0438\u044f\u043d\u0438\u044f \u043d\u0430 \u0440\u0430\u0431\u043e\u0447\u0438\u0439 localhost:3000."
+  },
+  "brief_record": {
+    "at": "2026-08-19T02:40:02.792635+00:00",
+    "brief_digest": "sha256:5481425661e6193b80793ac52799a9df24b42f31bdcbd35424a041b8b6b18480",
+    "by": "Mark"
+  },
+  "change_baseline": {
+    "format_version": 1,
+    "head": "4b33504eed028ccad11f2359315b9d2dfc594919",
+    "project_prefix": "",
+    "source": "git",
+    "submodule_oids": {},
+    "submodules": {}
+  },
+  "close_digest": "sha256:68ac893805737b9aea811400dc106851390c1322de39146229f48af4ae02c7a1",
+  "comprehension": {
+    "baseline": {
+      "at": "2026-08-19T02:45:19.725792+00:00",
+      "by": "Mark",
+      "statement": "Mark: \u0432\u0441\u0451 \u0445\u043e\u0440\u043e\u0448\u043e \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u043d\u0430 \u043f\u0440\u0430\u043a\u0442\u0438\u043a\u0435, \u043d\u043e \u0435\u0449\u0451 \u043d\u0443\u0436\u043d\u043e \u043f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c \u0431\u043e\u043b\u0435\u0435 \u0433\u043b\u0443\u0431\u043e\u043a\u043e \u2014 \u0441\u0430\u043c \u043a\u043e\u0434."
+    },
+    "recall_delay_hours": 24,
+    "recall_due_at": "2026-08-22T23:17:38.444340+00:00",
+    "verification_check": {
+      "at": "2026-08-21T23:16:24.714802+00:00",
+      "by": "Mark",
+      "statement": "\u0442\u043e\u0433\u0434\u0430 \u043c\u044b \u044d\u0442\u043e \u0443\u0432\u0438\u0434\u0438\u043c, \u0442\u0430\u043a \u043a\u0430\u043a \u0442\u0435\u0441\u0442\u044b \u0443\u043f\u0430\u0434\u0443\u0442; \u0447\u0442\u043e\u0431\u044b \u043d\u0435 \u0441\u043b\u043e\u043c\u0430\u0442\u044c \u0442\u043e \u0447\u0442\u043e \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c \u043d\u0430\u043f\u0438\u0441\u0430\u043b"
+    }
+  },
+  "created_at": "2026-08-19T02:39:31.840531+00:00",
+  "events": [
+    {
+      "at": "2026-08-19T02:39:31.840686+00:00",
+      "state": "briefing",
+      "type": "task.started"
+    },
+    {
+      "at": "2026-08-19T02:40:02.792682+00:00",
+      "state": "briefing",
+      "type": "task.brief.recorded"
+    },
+    {
+      "at": "2026-08-19T02:45:19.725827+00:00",
+      "state": "planned",
+      "type": "task.plan"
+    },
+    {
+      "at": "2026-08-19T02:48:35.627457+00:00",
+      "state": "approved",
+      "type": "task.approve"
+    },
+    {
+      "at": "2026-08-19T02:48:47.988827+00:00",
+      "state": "implementing",
+      "type": "task.implement"
+    },
+    {
+      "at": "2026-08-19T03:16:23.731492+00:00",
+      "state": "review_ready",
+      "type": "task.review"
+    },
+    {
+      "at": "2026-08-19T03:16:46.821098+00:00",
+      "state": "quality_checked",
+      "type": "task.precommit"
+    },
+    {
+      "at": "2026-08-21T23:15:08.543242+00:00",
+      "state": "review_ready",
+      "type": "task.quality.invalidated"
+    },
+    {
+      "at": "2026-08-21T23:16:15.511073+00:00",
+      "state": "quality_checked",
+      "type": "task.precommit"
+    },
+    {
+      "at": "2026-08-21T23:16:24.715086+00:00",
+      "state": "verified",
+      "type": "task.verify"
+    },
+    {
+      "at": "2026-08-21T23:17:38.444762+00:00",
+      "state": "closed",
+      "type": "task.close"
+    }
+  ],
+  "human_artifact": {
+    "at": "2026-08-19T02:45:19.725792+00:00",
+    "by": "Mark",
+    "content": "Mark: \u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c unit, API integration \u0438 browser/e2e-\u0442\u0435\u0441\u0442\u044b.",
+    "source": "plan-input"
+  },
+  "id": "al-20260819-68614f",
+  "metrics": {
+    "closed_at": "2026-08-21T23:17:38.444340+00:00",
+    "mode": "CAREFUL",
+    "plan_recorded_at": "2026-08-19T02:45:19.725792+00:00",
+    "task_type": "Test infrastructure and regression coverage",
+    "wall_seconds": 247086.603809
+  },
+  "mode": "CAREFUL",
+  "plan": {
+    "approach": "\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u0442\u043e\u043b\u044c\u043a\u043e Vitest \u0438 Playwright \u043a\u0430\u043a dev tooling; \u0430\u043b\u0438\u0430\u0441 server-only \u0438 \u043a\u043e\u0440\u043d\u044f \u043f\u0440\u043e\u0435\u043a\u0442\u0430; fixture \u0447\u0435\u0440\u0435\u0437 mkdtemp \u0441 \u043f\u0440\u043e\u0432\u0435\u0440\u0435\u043d\u043d\u044b\u043c \u043f\u0440\u0435\u0444\u0438\u043a\u0441\u043e\u043c, \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u044b\u043c ARCHEION_VAULT_DIR \u0438 \u043e\u0442\u043a\u043b\u044e\u0447\u0451\u043d\u043d\u044b\u043c DATABASE_URL; \u043f\u043e\u0441\u043b\u0435\u0434\u043e\u0432\u0430\u0442\u0435\u043b\u044c\u043d\u044b\u0435 \u0444\u0430\u0439\u043b\u043e\u0432\u044b\u0435 suites; \u043f\u0440\u044f\u043c\u044b\u0435 \u0432\u044b\u0437\u043e\u0432\u044b Route Handlers \u0447\u0435\u0440\u0435\u0437 Web Request/Response; \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0439 Next server \u043d\u0430 \u043d\u0435\u0440\u0430\u0431\u043e\u0447\u0435\u043c \u043f\u043e\u0440\u0442\u0443 \u0434\u043b\u044f browser/e2e. \u041f\u043e\u043a\u0440\u044b\u0432\u0430\u0442\u044c \u043f\u043e \u043f\u043e\u0440\u044f\u0434\u043a\u0443 path safety, CRUD/limits, rename-move-delete, search/cache, graph links, API status/body \u0438 \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c\u0441\u043a\u0438\u0439 e2e-\u043f\u0443\u0442\u044c.",
+    "at": "2026-08-19T02:45:19.725792+00:00",
+    "mode_recommendation": {
+      "mode": "CAREFUL",
+      "override_reason": null,
+      "reason": "risk signal: infrastructure, secret or cryptography",
+      "requested": "AUTO"
+    },
+    "primary_risk": "\u041e\u0448\u0438\u0431\u043e\u0447\u043d\u043e \u043d\u0430\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043d\u044b\u0439 \u0442\u0435\u0441\u0442 \u043c\u043e\u0436\u0435\u0442 \u0437\u0430\u0442\u0440\u043e\u043d\u0443\u0442\u044c \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0439 Vault \u0438\u043b\u0438 \u0411\u0414; shared mutation queue/search cache \u0438 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0439 Next server \u043c\u043e\u0433\u0443\u0442 \u0441\u043e\u0437\u0434\u0430\u0432\u0430\u0442\u044c \u0444\u043b\u0430\u043a\u0438; \u043d\u043e\u0432\u044b\u0435 test dependencies \u043c\u043e\u0433\u0443\u0442 \u043f\u043e\u0432\u043b\u0438\u044f\u0442\u044c \u043d\u0430 install, dev \u0438\u043b\u0438 build.",
+    "rejected_alternative": "\u041e\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044e\u0449\u0438\u0435 \u0440\u0443\u0447\u043d\u044b\u0435 browser harnesses \u0438 \u0440\u0430\u0437\u043e\u0432\u044b\u0435 smoke-\u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438. \u041e\u0442\u043a\u043b\u043e\u043d\u0435\u043d\u043e: \u043e\u043d\u0438 \u043d\u0435 \u0437\u0430\u043f\u0443\u0441\u043a\u0430\u044e\u0442\u0441\u044f \u0441\u0442\u0430\u043d\u0434\u0430\u0440\u0442\u043d\u044b\u043c runner, \u043d\u0435 \u0434\u0430\u044e\u0442 \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u0435\u043c\u043e\u0439 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438 \u043a\u043e\u0434\u0430 \u0438 \u043d\u0435 \u0437\u0430\u0449\u0438\u0449\u0430\u044e\u0442 Route Handler \u0438 \u0444\u0430\u0439\u043b\u043e\u0432\u044b\u0435 \u043a\u043e\u043d\u0442\u0440\u0430\u043a\u0442\u044b \u0432 CI.",
+    "rollback_mitigation": "Mark: \u0431\u0443\u0434\u0435\u043c \u0434\u043e\u0431\u0438\u0432\u0430\u0442\u044c \u0434\u043e \u043a\u043e\u043d\u0446\u0430. \u041d\u043e \u0435\u0441\u043b\u0438 \u0432\u0434\u0440\u0443\u0433 \u0447\u0442\u043e-\u0442\u043e \u043f\u043e\u0439\u0434\u0451\u0442 \u043d\u0435 \u0442\u0430\u043a, \u043e\u0442\u043a\u0430\u0442\u0438\u043c \u043d\u0430 \u043f\u0440\u0435\u0434\u044b\u0434\u0443\u0449\u0438\u0439 \u043a\u043e\u043c\u043c\u0438\u0442.",
+    "summary": "\u0412\u0432\u0435\u0441\u0442\u0438 \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u0435\u043c\u044b\u0439 \u0442\u0435\u0441\u0442\u043e\u0432\u044b\u0439 \u0444\u0443\u043d\u0434\u0430\u043c\u0435\u043d\u0442 Vault: Vitest \u0434\u043b\u044f unit \u0438 Route Handler contracts, \u0438\u0437\u043e\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0439 \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u044b\u0439 Vault fixture, \u0437\u0430\u0442\u0435\u043c Playwright real-server e2e \u043d\u0430 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u043e\u043c \u043f\u043e\u0440\u0442\u0443. \u0420\u0435\u0430\u043b\u0438\u0437\u043e\u0432\u044b\u0432\u0430\u0442\u044c \u0432\u0435\u0440\u0442\u0438\u043a\u0430\u043b\u044c\u043d\u044b\u043c\u0438 RED\u2192GREEN-\u0441\u0440\u0435\u0437\u0430\u043c\u0438, \u043d\u0430\u0447\u0438\u043d\u0430\u044f \u0441 \u0437\u0430\u043f\u0440\u0435\u0442\u0430 path traversal.",
+    "verification_strategy": "\u0414\u043b\u044f \u043a\u0430\u0436\u0434\u043e\u0433\u043e \u043f\u043e\u0432\u0435\u0434\u0435\u043d\u0438\u044f \u0441\u043d\u0430\u0447\u0430\u043b\u0430 \u0437\u0430\u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u0442\u044c RED, \u0437\u0430\u0442\u0435\u043c \u043c\u0438\u043d\u0438\u043c\u0430\u043b\u044c\u043d\u044b\u0439 GREEN \u0438 refactor; \u043f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c, \u0447\u0442\u043e intentional break \u0432\u0430\u043b\u0438\u0442 \u0441\u043e\u043e\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0443\u044e\u0449\u0438\u0439 \u0442\u0435\u0441\u0442; \u0432\u0441\u0435 \u0442\u0435\u0441\u0442\u044b \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u044e\u0442 \u0442\u043e\u043b\u044c\u043a\u043e \u0432\u0430\u043b\u0438\u0434\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0439 temp prefix \u0438 \u0432\u043e\u0441\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u044e\u0442 env; \u043f\u0440\u043e\u0439\u0442\u0438 npm run test:unit, test:api, test:e2e, test:all, typecheck, lint, build \u0438 git diff --check."
+  },
+  "post_close_integrity": {
+    "format_version": 1,
+    "head_digest": "sha256:68ac893805737b9aea811400dc106851390c1322de39146229f48af4ae02c7a1",
+    "head_sequence": 0
+  },
+  "quality": [
+    {
+      "advisories": [
+        "No project-specific formatter, linter, type checker, test runner, or dependency scanner is configured yet.",
+        "DRY, KISS, YAGNI, SOLID, and architecture findings require concrete diff evidence and engineer review."
+      ],
+      "checks": [
+        {
+          "name": "python-syntax",
+          "status": "passed"
+        },
+        {
+          "detail": "security rule is not approved for this task",
+          "name": "secret-baseline",
+          "status": "not-run"
+        },
+        {
+          "name": "git-baseline-diff-check",
+          "status": "passed"
+        },
+        {
+          "name": "git-diff-check",
+          "status": "passed"
+        },
+        {
+          "name": "git-cached-diff-check",
+          "status": "passed"
+        },
+        {
+          "name": "workspace-stability",
+          "status": "passed"
+        }
+      ],
+      "findings": [],
+      "status": "passed",
+      "workspace_fingerprint": {
+        "algorithm": "sha256",
+        "content_digest": "sha256:b86e75865f0cf52dcf863cc5589a1a62182b2d5fdc0b16e762e202db7596c78e",
+        "digest": "sha256:b86e75865f0cf52dcf863cc5589a1a62182b2d5fdc0b16e762e202db7596c78e",
+        "files": 101,
+        "format_version": 3,
+        "git_state_digest": "sha256:65f7b5e004a58a1513d9398df0db19c3ffdb2f89131848d8ddd650b552520b48",
+        "head": "4b33504eed028ccad11f2359315b9d2dfc594919",
+        "source": "git-materialized"
+      }
+    },
+    {
+      "advisories": [
+        "No project-specific formatter, linter, type checker, test runner, or dependency scanner is configured yet.",
+        "DRY, KISS, YAGNI, SOLID, and architecture findings require concrete diff evidence and engineer review."
+      ],
+      "checks": [
+        {
+          "name": "python-syntax",
+          "status": "passed"
+        },
+        {
+          "detail": "security rule is not approved for this task",
+          "name": "secret-baseline",
+          "status": "not-run"
+        },
+        {
+          "name": "git-baseline-diff-check",
+          "status": "passed"
+        },
+        {
+          "name": "git-diff-check",
+          "status": "passed"
+        },
+        {
+          "name": "git-cached-diff-check",
+          "status": "passed"
+        },
+        {
+          "name": "workspace-stability",
+          "status": "passed"
+        }
+      ],
+      "findings": [],
+      "status": "passed",
+      "workspace_fingerprint": {
+        "algorithm": "sha256",
+        "content_digest": "sha256:b86e75865f0cf52dcf863cc5589a1a62182b2d5fdc0b16e762e202db7596c78e",
+        "digest": "sha256:b86e75865f0cf52dcf863cc5589a1a62182b2d5fdc0b16e762e202db7596c78e",
+        "files": 101,
+        "format_version": 3,
+        "git_state_digest": "sha256:19634cf3267ff98e14ea7084a4fb1d765ec9f5ea51491d26ec16c0c49893da4a",
+        "head": "793109ed16c0d14a011485420ffe1d83a27dc27e",
+        "source": "git-materialized"
+      }
+    }
+  ],
+  "quality_invalidations": [
+    {
+      "at": "2026-08-21T23:15:08.543052+00:00",
+      "current_fingerprint": {
+        "algorithm": "sha256",
+        "content_digest": "sha256:b86e75865f0cf52dcf863cc5589a1a62182b2d5fdc0b16e762e202db7596c78e",
+        "digest": "sha256:b86e75865f0cf52dcf863cc5589a1a62182b2d5fdc0b16e762e202db7596c78e",
+        "files": 101,
+        "format_version": 3,
+        "git_state_digest": "sha256:19634cf3267ff98e14ea7084a4fb1d765ec9f5ea51491d26ec16c0c49893da4a",
+        "head": "793109ed16c0d14a011485420ffe1d83a27dc27e",
+        "source": "git-materialized"
+      },
+      "reason": "Code changed after the quality gate.",
+      "recorded_fingerprint": {
+        "algorithm": "sha256",
+        "content_digest": "sha256:b86e75865f0cf52dcf863cc5589a1a62182b2d5fdc0b16e762e202db7596c78e",
+        "digest": "sha256:b86e75865f0cf52dcf863cc5589a1a62182b2d5fdc0b16e762e202db7596c78e",
+        "files": 101,
+        "format_version": 3,
+        "git_state_digest": "sha256:65f7b5e004a58a1513d9398df0db19c3ffdb2f89131848d8ddd650b552520b48",
+        "head": "4b33504eed028ccad11f2359315b9d2dfc594919",
+        "source": "git-materialized"
+      }
+    }
+  ],
+  "ruleset": {
+    "documents": {},
+    "rules": {},
+    "version": "ruleset-e15da02dc403"
+  },
+  "schema_version": 2,
+  "state": "closed",
+  "task_type": "Test infrastructure and regression coverage",
+  "title": "Vault test foundation",
+  "verification": {
+    "at": "2026-08-21T23:16:24.714924+00:00",
+    "by": "Mark",
+    "comprehension_digest": "sha256:7e67b34cdc5225da62fe237d53bae86e766c3fab384a2cf2128295dad73554f2",
+    "provenance": "audit",
+    "reason": "\u044f \u0443\u0432\u0438\u0434\u0435\u043b \u0447\u0442\u043e \u0432\u0441\u0435 \u0442\u0435\u0441\u0442\u044b \u043f\u0440\u043e\u0439\u0434\u0435\u043d\u044b",
+    "record_digest": "sha256:01d64ffd25439e044e926bc64687ec24d2951207e4d8423165eda6ab36fd4301",
+    "reported_metrics": {
+      "active_minutes": null,
+      "agent_model": null,
+      "agent_provider": null,
+      "agent_turns": null,
+      "input_tokens": null,
+      "output_tokens": null,
+      "provenance": null
+    },
+    "result": "pass",
+    "subject_digest": "sha256:7a39ca61dfc56ea23cc2288583223a948bf11086ef6ef41da7e7b7710accfde2"
+  }
+}
